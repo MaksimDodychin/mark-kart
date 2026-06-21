@@ -141,6 +141,24 @@
   .sw.gold{background:linear-gradient(135deg,#fff6b0,#ffd700 45%,#b8860b)!important;position:relative;box-shadow:0 0 12px #ffd70088;}
   .sw.gold.locked{filter:grayscale(.6) brightness(.7);}
   .sw.gold .lk{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:16px;}
+  /* ===== ОБЛОЖКА-ЗАСТАВКА ПРИ ЗАПУСКЕ ===== */
+  #cover{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 50% 32%,#3a2e7a 0%,#241a52 46%,#140d30 100%);
+    transition:opacity .6s ease;overflow:hidden;-webkit-tap-highlight-color:transparent;}
+  #cover.hide{opacity:0;pointer-events:none;}
+  #cover .cv-art{text-align:center;position:relative;animation:cvIn .55s ease;padding:0 16px;}
+  #cover .cv-vac{font-size:clamp(96px,27vw,190px);filter:drop-shadow(0 12px 18px rgba(0,0,0,.55));line-height:1;}
+  #cover .cv-flag{position:absolute;top:-8px;right:16%;font-size:clamp(48px,12vw,92px);transform:rotate(13deg);
+    filter:drop-shadow(0 6px 10px rgba(0,0,0,.5));}
+  #cover .cv-title{font-family:'Arial Black',Arial,sans-serif;font-weight:900;letter-spacing:2px;
+    font-size:clamp(48px,15vw,112px);color:#ffd34d;text-shadow:0 5px 0 #b97e00,0 10px 20px rgba(0,0,0,.55);margin-top:8px;}
+  #cover .cv-sub{color:#d7dbff;font-size:clamp(15px,4.6vw,27px);font-weight:bold;margin-top:8px;opacity:.92;}
+  #cover .cv-load{margin-top:28px;display:flex;gap:11px;justify-content:center;}
+  #cover .cv-load span{width:15px;height:15px;border-radius:50%;background:#ffd34d;animation:cvBlink 1s infinite;}
+  #cover .cv-load span:nth-child(2){animation-delay:.18s;}
+  #cover .cv-load span:nth-child(3){animation-delay:.36s;}
+  @keyframes cvBlink{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
+  @keyframes cvIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
 </style>
 
   <link rel="manifest" href="manifest.webmanifest">
@@ -153,6 +171,17 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
 </head>
 <body>
+<!-- ОБЛОЖКА-ЗАСТАВКА (видна сразу при запуске, прячется когда игра готова) -->
+<div id="cover">
+  <div class="cv-art">
+    <div class="cv-flag">🏁</div>
+    <div class="cv-vac">🧹</div>
+    <div class="cv-title">МАРК&nbsp;КАРТ</div>
+    <div class="cv-sub">Гонки пылесосов в замке</div>
+    <div class="cv-load"><span></span><span></span><span></span></div>
+  </div>
+</div>
+<script>setTimeout(function(){var c=document.getElementById('cover');if(c)c.classList.add('hide');},15000);</script>
 <canvas id="c"></canvas>
 <div id="flash"></div>
 <div id="speedfx"></div>
@@ -30466,6 +30495,15 @@ buildWorld();
 buildShowcase();
 animate();
 setTimeout(() => wowBurst("\u041C\u0410\u0420\u041A \u041A\u0410\u0420\u0422!", "\u0413\u043E\u043D\u043A\u0438 \u043F\u044B\u043B\u0435\u0441\u043E\u0441\u043E\u0432 \u0433\u043E\u0442\u043E\u0432\u044B"), 500);
+(function() {
+  const cv = document.getElementById("cover");
+  if (!cv)
+    return;
+  setTimeout(() => {
+    cv.classList.add("hide");
+    setTimeout(() => cv.remove(), 700);
+  }, 500);
+})();
 
 </script>
 
