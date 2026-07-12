@@ -29387,6 +29387,7 @@ var wowLayer = el("wowLayer");
 var GOLD_HEX = 16766720;
 var goldSelected = false;
 var raceLivesLost = 0;
+var raceHits = 0;
 function playerColorHex() {
   return goldSelected ? GOLD_HEX : COLORS[selColor].h;
 }
@@ -29399,7 +29400,7 @@ function goldifyKart(group) {
   });
 }
 function defaultAchStats() {
-  return { cats: 0, rats: 0, poops: 0, obstacles: 0, holes: 0, oils: 0, boosts: 0, magnets: 0, batteries: 0, jumps: 0, portals: 0, shortcuts: 0, bonus: 0, wins: 0, podiums: 0, finishes: 0, races: 0, coinsTotal: 0, bestRaceCoins: 0, recordBeaten: 0, extremalDone: 0, winMid: 0, winHard: 0, survivedHard: 0, modelsUsed: [], colorsUsed: [], locsRaced: [], unlocked: [], gold: 0 };
+  return { cats: 0, rats: 0, poops: 0, obstacles: 0, holes: 0, oils: 0, boosts: 0, magnets: 0, batteries: 0, jumps: 0, portals: 0, shortcuts: 0, bonus: 0, wins: 0, podiums: 0, finishes: 0, races: 0, coinsTotal: 0, bestRaceCoins: 0, cleanRaces: 0, goldRides: 0, extremalDone: 0, winMid: 0, winHard: 0, survivedHard: 0, modelsUsed: [], colorsUsed: [], locsRaced: [], unlocked: [], gold: 0 };
 }
 var ACH_KEY = "castle_kart_ach_v1";
 var achStats = (() => {
@@ -29456,9 +29457,15 @@ var ACHIEVEMENTS = [
   { id: "dino", icon: "\u{1F995}", name: "\u0414\u0438\u043D\u043E-\u0433\u043E\u043D\u0449\u0438\u043A", desc: "\u041F\u043E\u0438\u0433\u0440\u0430\u0439 \u0432 \u0414\u0438\u043D\u043E\u043F\u0430\u0440\u043A\u0435", goal: 1, cur: (s) => s.locsRaced.includes("dino") ? 1 : 0 },
   { id: "raketa", icon: "\u{1F680}", name: "\u041A\u043E\u0441\u043C\u043E-\u0420\u0430\u043A\u0435\u0442\u0430", desc: "\u041F\u0440\u043E\u043A\u0430\u0442\u0438\u0441\u044C \u043D\u0430 \xAB\u0420\u0430\u043A\u0435\u0442\u0430 (\u0421\u0421\u0421\u0420)\xBB", goal: 1, cur: (s) => s.modelsUsed.includes("raketa") ? 1 : 0 },
   { id: "vikhr", icon: "\u{1F32A}\uFE0F", name: "\u0421\u043E\u0432\u0435\u0442\u0441\u043A\u0438\u0439 \u0412\u0438\u0445\u0440\u044C", desc: "\u041F\u0440\u043E\u043A\u0430\u0442\u0438\u0441\u044C \u043D\u0430 \xAB\u0412\u0438\u0445\u0440\u044C (\u0421\u0421\u0421\u0420)\xBB", goal: 1, cur: (s) => s.modelsUsed.includes("vikhr") ? 1 : 0 },
-  { id: "recordman", icon: "\u{1F4C8}", name: "\u0420\u0435\u043A\u043E\u0440\u0434\u0441\u043C\u0435\u043D", desc: "\u041F\u043E\u0431\u0435\u0439 \u0441\u0432\u043E\u0439 \u0440\u0435\u043A\u043E\u0440\u0434 \u043C\u043E\u043D\u0435\u0442\u043E\u043A", goal: 1, cur: (s) => s.recordBeaten }
+  { id: "clean", icon: "\u{1F9FC}", name: "\u0410\u043A\u043A\u0443\u0440\u0430\u0442\u043D\u0430\u044F \u0443\u0431\u043E\u0440\u043A\u0430", desc: "\u0414\u043E\u0435\u0434\u044C \u0434\u043E \u0444\u0438\u043D\u0438\u0448\u0430, \u043D\u0438 \u0432\u043E \u0447\u0442\u043E \u043D\u0435 \u0432\u0440\u0435\u0437\u0430\u0432\u0448\u0438\u0441\u044C", goal: 1, cur: (s) => s.cleanRaces },
+  // секретное — не входит в 36 для золотого пылесоса
+  { id: "goldfever", icon: "\u{1F31F}", name: "\u0417\u043E\u043B\u043E\u0442\u0430\u044F \u043B\u0438\u0445\u043E\u0440\u0430\u0434\u043A\u0430", desc: "\u041F\u0440\u043E\u043A\u0430\u0442\u0438\u0441\u044C \u043D\u0430 \u0437\u043E\u043B\u043E\u0442\u043E\u043C \u043F\u044B\u043B\u0435\u0441\u043E\u0441\u0435", goal: 1, secret: true, cur: (s) => s.goldRides }
 ];
-var goldUnlocked = achStats.unlocked.length >= ACHIEVEMENTS.length;
+var ACH_BASE = ACHIEVEMENTS.filter((a) => !a.secret);
+achStats.unlocked = achStats.unlocked.filter((id) => ACHIEVEMENTS.some((a) => a.id === id));
+saveAchStats();
+var achBaseDone = () => ACH_BASE.filter((a) => achStats.unlocked.includes(a.id)).length;
+var goldUnlocked = achStats.gold > 0 || achBaseDone() >= ACH_BASE.length;
 function achProgress(a) {
   const raw = a.cur(achStats);
   return { cur: Math.min(raw, a.goal), goal: a.goal, done: raw >= a.goal };
@@ -29474,7 +29481,7 @@ function checkAchievements() {
     }
   }
   newly.forEach(queueAchToast);
-  if (!goldUnlocked && achStats.unlocked.length >= ACHIEVEMENTS.length) {
+  if (!goldUnlocked && achBaseDone() >= ACH_BASE.length) {
     goldUnlocked = true;
     achStats.gold = 1;
     setTimeout(() => {
@@ -29527,12 +29534,15 @@ function nextAchToast() {
   }, 2300);
 }
 function renderAchPanel() {
-  const done = achStats.unlocked.length, total = ACHIEVEMENTS.length;
-  el("achCount").textContent = `${done} / ${total}`;
+  const done = achBaseDone(), total = ACH_BASE.length;
+  const secretDone = achStats.unlocked.includes("goldfever");
+  el("achCount").textContent = `${done} / ${total}` + (secretDone ? " + \u{1F31F}" : "");
   el("achBarFill").style.width = (total ? done / total * 100 : 0) + "%";
   el("achGoldNote").innerHTML = goldUnlocked ? "\u2728 <b>\u0417\u043E\u043B\u043E\u0442\u043E\u0439 \u043F\u044B\u043B\u0435\u0441\u043E\u0441 \u041E\u0422\u041A\u0420\u042B\u0422!</b> \u0412\u044B\u0431\u0435\u0440\u0438 \u0435\u0433\u043E \u0432 \u0433\u0430\u0440\u0430\u0436\u0435." : `\u0421\u043E\u0431\u0435\u0440\u0438 \u0432\u0441\u0435 ${total} \u2014 \u043E\u0442\u043A\u0440\u043E\u0435\u0442\u0441\u044F \u2728 <b>\u0437\u043E\u043B\u043E\u0442\u043E\u0439 \u043F\u044B\u043B\u0435\u0441\u043E\u0441</b>!`;
   el("achGrid").innerHTML = ACHIEVEMENTS.map((a) => {
     const p = achProgress(a);
+    if (a.secret && !p.done)
+      return `<div class="achc"><div class="achc-ic">\u2753</div><div class="achc-tx"><div class="achc-nm">\u0421\u0435\u043A\u0440\u0435\u0442</div><div class="achc-ds">\u0421\u0435\u043A\u0440\u0435\u0442\u043D\u043E\u0435 \u0434\u043E\u0441\u0442\u0438\u0436\u0435\u043D\u0438\u0435\u2026 \u{1F92B}</div></div></div>`;
     const bar = a.goal > 1 ? `<div class="achc-bar"><div class="achc-fill" style="width:${Math.round(p.cur / a.goal * 100)}%"></div></div><div class="achc-pct">${p.cur}/${a.goal}</div>` : "";
     return `<div class="achc ${p.done ? "done" : ""}"><div class="achc-ic">${p.done ? a.icon : "\u{1F512}"}</div><div class="achc-tx"><div class="achc-nm">${a.name}</div><div class="achc-ds">${a.desc}</div>${p.done ? '<div class="achc-ok">\u2705 \u0413\u043E\u0442\u043E\u0432\u043E!</div>' : bar}</div></div>`;
   }).join("");
@@ -29831,6 +29841,7 @@ function startRace() {
   buildItems();
   spawnRacers();
   raceLivesLost = 0;
+  raceHits = 0;
   combo = 0;
   comboT = 0;
   comboEl.classList.remove("show");
@@ -29863,8 +29874,6 @@ function finishRace(crashed) {
   el("finishTitle").textContent = crashed ? "\u{1F4A5} \u0416\u0438\u0437\u043D\u0438 \u043A\u043E\u043D\u0447\u0438\u043B\u0438\u0441\u044C!" : place === 1 ? "\u{1F3C6} \u041F\u041E\u0411\u0415\u0414\u0410!" : "\u{1F3C1} \u0424\u0418\u041D\u0418\u0428!";
   el("boardEnd").innerHTML = b.map((x, i) => `<tr class="${x.me ? "me" : ""}"><td>${i + 1}</td><td>${x.name}</td></tr>`).join("");
   if (player.coins > record) {
-    if (record > 0)
-      achStats.recordBeaten = 1;
     record = player.coins;
     localStorage.setItem("castle_kart_record", record);
     el("rec").textContent = record;
@@ -29889,6 +29898,10 @@ function finishRace(crashed) {
       if (raceLivesLost === 0)
         achStats.extremalDone = 1;
     }
+    if (raceHits === 0)
+      achStats.cleanRaces = 1;
+    if (goldSelected)
+      achStats.goldRides = 1;
   }
   checkAchievements();
   saveAchStats();
@@ -30390,6 +30403,7 @@ function updateItems(dt) {
         Sound.oil();
         screenShake(170);
         popWow("\u{1F6E2}\uFE0F \u0417\u0410\u041D\u041E\u0421!", 50, 26, "#ffb000");
+        raceHits++;
         achBump("oils");
       } else if (it.type === "poop" && it.cd <= 0) {
         P.poop = 1.4;
@@ -30401,9 +30415,11 @@ function updateItems(dt) {
         screenShake(240);
         flashEl.animate([{ opacity: 0.2 }, { opacity: 0 }], { duration: 250 });
         Sound.splat();
+        raceHits++;
         achBump("poops");
       } else if (it.type === "hole") {
         if (P.power <= 0) {
+          raceHits++;
           achBump("holes");
           combo = 0;
           comboT = 0;
@@ -30447,6 +30463,7 @@ function updateItems(dt) {
             Sound.squeak();
           else
             Sound.crash();
+          raceHits++;
           achBump("obstacles");
           if (it.sound === "meow")
             achBump("cats");
