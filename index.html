@@ -70,6 +70,7 @@
   .sw{width:36px;height:36px;border-radius:50%;cursor:pointer;border:3px solid #ffffff55;transition:.12s;}
   .sw:hover{transform:scale(1.12);} .sw.sel{border-color:#fff;box-shadow:0 0 0 4px #ffffff44;}
   #diffs{display:flex;gap:10px;justify-content:center;}
+  #nicks{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;max-width:640px;margin:0 auto;}
   .diff{padding:8px 18px;border-radius:12px;cursor:pointer;background:#ffffff14;border:3px solid transparent;font-weight:bold;}
   .diff.sel{border-color:#7CFC9B;background:#7CFC9B22;}
   button{font-family:inherit;font-size:clamp(18px,2.4vw,26px);font-weight:bold;padding:14px 34px;border:none;border-radius:16px;cursor:pointer;background:linear-gradient(180deg,#ffd34d,#ffb000);color:#4a2d00;box-shadow:0 6px 0 #c98800;transition:transform .08s,box-shadow .08s;}
@@ -244,6 +245,8 @@
   <div id="cards"></div>
   <div class="pick-title">Цвет:</div>
   <div id="colors"></div>
+  <div class="pick-title">Твой ник:</div>
+  <div id="nicks"></div>
   <div class="pick-title">Где гоняем:</div>
   <div id="locs"></div>
   <div class="pick-title">Сложность:</div>
@@ -29140,7 +29143,33 @@ function makeKart(model, colorHex) {
   scene.add(g);
   return g;
 }
-var RIVNAMES = ["\u0420\u043E\u0431\u043E-\u0421\u043F\u0438\u0434\u0438", "\u0422\u0443\u0440\u0431\u043E-\u0428\u0432\u0430\u0431\u0440\u0430", "\u0426\u0438\u043A\u043B\u043E\u043D", "\u0412\u0438\u0445\u0440\u0451\u043A", "\u041C\u0435\u0442\u0451\u043B\u043A\u0438\u043D"];
+var NICKPOOL = [
+  { n: "\u0420\u043E\u0431\u043E-\u0421\u043F\u0438\u0434\u0438", m: "robot" },
+  // робот-пылесос 🤖
+  { n: "\u0422\u0443\u0440\u0431\u043E-\u0428\u0432\u0430\u0431\u0440\u0430", m: "steam" },
+  // паровая швабра 💨
+  { n: "\u0426\u0438\u043A\u043B\u043E\u043D", m: "cyclone" },
+  // циклонный 🌀
+  { n: "\u0412\u0438\u0445\u0440\u0451\u043A", m: "vikhr" },
+  // «Вихрь» (СССР) 🌪️
+  { n: "\u041C\u0435\u0442\u0451\u043B\u043A\u0438\u043D", m: "upright" },
+  // башенный 🧹
+  { n: "\u0422\u0443\u0440\u0431\u043E-\u0429\u0451\u0442\u043A\u0430", m: "canister" },
+  // канистровый 🧳
+  { n: "\u0410\u043A\u0432\u0430\u0444\u0438\u043B\u044C\u0442\u0440", m: "washer" },
+  // моющий 💧
+  { n: "\u0420\u0430\u043A\u0435\u0442\u0447\u0438\u043A", m: "raketa" }
+  // ракета (СССР) 🚀
+];
+var nickModelIdx = (nick) => Math.max(0, MODELS.findIndex((mm) => mm.id === nick.m));
+var selNick = (() => {
+  try {
+    const n = localStorage.getItem("castle_kart_nick") || "";
+    return NICKPOOL.some((p) => p.n === n) ? n : "";
+  } catch (e) {
+    return "";
+  }
+})();
 function spawnRacers() {
   if (player)
     scene.remove(player.mesh);
@@ -29167,15 +29196,16 @@ function spawnRacers() {
     score: 0,
     bumpCd: 0,
     lives: DIFFS[diff].lives || null,
-    name: "\u{1F9F9} \u0422\u042B"
+    name: "\u{1F9F9} " + (selNick || "\u0422\u042B")
   };
+  const rivPool = NICKPOOL.filter((p) => p.n !== selNick).sort(() => Math.random() - 0.5);
   const used = /* @__PURE__ */ new Set([selColor]);
   for (let k = 0; k < NRIV; k++) {
-    let cm = k % MODELS.length, cc = (selColor + 1 + k) % COLORS.length;
+    let cm = nickModelIdx(rivPool[k]), cc = (selColor + 1 + k) % COLORS.length;
     while (used.has(cc))
       cc = (cc + 1) % COLORS.length;
     used.add(cc);
-    rivals.push({ mesh: makeKart(cm, COLORS[cc].h), param: 0, lap: 0, phase: k * 1.7, base: DIFFS[diff].base + k * 0.8, lat: 1.8 + Math.random() * 1.4, score: 0, hitCd: 0, lives: DIFFS[diff].lives || null, dead: false, teleCd: 0, boost: 0, kick: 0, slow: 0, bumpCd: 0, name: RIVNAMES[k] });
+    rivals.push({ mesh: makeKart(cm, COLORS[cc].h), param: 0, lap: 0, phase: k * 1.7, base: DIFFS[diff].base + k * 0.8, lat: 1.8 + Math.random() * 1.4, score: 0, hitCd: 0, lives: DIFFS[diff].lives || null, dead: false, teleCd: 0, boost: 0, kick: 0, slow: 0, bumpCd: 0, name: rivPool[k].n });
   }
   placeGrid();
   if (outlinePass)
@@ -29771,6 +29801,26 @@ DIFFS.forEach((dd, i) => {
   };
   diffsBox.appendChild(b);
 });
+var nicksBox = el("nicks");
+function buildNicks() {
+  nicksBox.innerHTML = "";
+  const opts = [{ n: "", em: "\u{1F9F9}" }, ...NICKPOOL.map((p) => ({ n: p.n, em: MODELS[nickModelIdx(p)].em }))];
+  opts.forEach((o) => {
+    const b = document.createElement("div");
+    b.className = "diff" + (o.n === selNick ? " sel" : "");
+    b.textContent = o.em + " " + (o.n || "\u041F\u0440\u043E\u0441\u0442\u043E \u0422\u042B");
+    b.onclick = () => {
+      selNick = o.n;
+      try {
+        localStorage.setItem("castle_kart_nick", o.n);
+      } catch (e) {
+      }
+      buildNicks();
+    };
+    nicksBox.appendChild(b);
+  });
+}
+buildNicks();
 el("play").onclick = startRace;
 el("again").onclick = startRace;
 el("toMenu").onclick = showMenu;
