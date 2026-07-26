@@ -29158,8 +29158,10 @@ var NICKPOOL = [
   // канистровый 🧳
   { n: "\u0410\u043A\u0432\u0430\u0444\u0438\u043B\u044C\u0442\u0440", m: "washer" },
   // моющий 💧
-  { n: "\u0420\u0430\u043A\u0435\u0442\u0447\u0438\u043A", m: "raketa" }
+  { n: "\u0420\u0430\u043A\u0435\u0442\u0447\u0438\u043A", m: "raketa" },
   // ракета (СССР) 🚀
+  { n: "\u041F\u044B\u043B\u0435\u0441\u043E\u0441\u0438\u043A", m: "robot", any: true }
+  // заказ Марка: любой вид пылесоса; в соперниках — ЗОЛОТОЙ 🥇
 ];
 var nickModelIdx = (nick) => Math.max(0, MODELS.findIndex((mm) => mm.id === nick.m));
 var selNick = (() => {
@@ -29201,11 +29203,16 @@ function spawnRacers() {
   const rivPool = NICKPOOL.filter((p) => p.n !== selNick).sort(() => Math.random() - 0.5);
   const used = /* @__PURE__ */ new Set([selColor]);
   for (let k = 0; k < NRIV; k++) {
-    let cm = nickModelIdx(rivPool[k]), cc = (selColor + 1 + k) % COLORS.length;
+    const nk = rivPool[k];
+    const golden = nk.n === "\u041F\u044B\u043B\u0435\u0441\u043E\u0441\u0438\u043A";
+    let cm = golden || nk.any ? Math.floor(Math.random() * MODELS.length) : nickModelIdx(nk), cc = (selColor + 1 + k) % COLORS.length;
     while (used.has(cc))
       cc = (cc + 1) % COLORS.length;
     used.add(cc);
-    rivals.push({ mesh: makeKart(cm, COLORS[cc].h), param: 0, lap: 0, phase: k * 1.7, base: DIFFS[diff].base + k * 0.8, lat: 1.8 + Math.random() * 1.4, score: 0, hitCd: 0, lives: DIFFS[diff].lives || null, dead: false, teleCd: 0, boost: 0, kick: 0, slow: 0, bumpCd: 0, name: rivPool[k].n });
+    const rm = makeKart(cm, golden ? GOLD_HEX : COLORS[cc].h);
+    if (golden)
+      goldifyKart(rm);
+    rivals.push({ mesh: rm, param: 0, lap: 0, phase: k * 1.7, base: DIFFS[diff].base + k * 0.8, lat: 1.8 + Math.random() * 1.4, score: 0, hitCd: 0, lives: DIFFS[diff].lives || null, dead: false, teleCd: 0, boost: 0, kick: 0, slow: 0, bumpCd: 0, name: nk.n });
   }
   placeGrid();
   if (outlinePass)
@@ -29804,7 +29811,7 @@ DIFFS.forEach((dd, i) => {
 var nicksBox = el("nicks");
 function buildNicks() {
   nicksBox.innerHTML = "";
-  const opts = [{ n: "", em: "\u{1F9F9}" }, ...NICKPOOL.map((p) => ({ n: p.n, em: MODELS[nickModelIdx(p)].em }))];
+  const opts = [{ n: "", em: "\u{1F9F9}" }, ...NICKPOOL.map((p) => ({ n: p.n, em: p.n === "\u041F\u044B\u043B\u0435\u0441\u043E\u0441\u0438\u043A" ? "\u{1F947}" : MODELS[nickModelIdx(p)].em }))];
   opts.forEach((o) => {
     const b = document.createElement("div");
     b.className = "diff" + (o.n === selNick ? " sel" : "");
