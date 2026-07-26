@@ -29144,26 +29144,28 @@ function makeKart(model, colorHex) {
   return g;
 }
 var NICKPOOL = [
-  { n: "\u0420\u043E\u0431\u043E-\u0421\u043F\u0438\u0434\u0438", m: "robot" },
-  // робот-пылесос 🤖
-  { n: "\u0422\u0443\u0440\u0431\u043E-\u0428\u0432\u0430\u0431\u0440\u0430", m: "steam" },
-  // паровая швабра 💨
-  { n: "\u0426\u0438\u043A\u043B\u043E\u043D", m: "cyclone" },
-  // циклонный 🌀
-  { n: "\u0412\u0438\u0445\u0440\u0451\u043A", m: "vikhr" },
+  { n: "\u0420\u043E\u0431\u043E-\u0421\u043F\u0438\u0434\u0438", models: ["robot", "mop", "pool"] },
+  // робот + мойщик окон + бассейн
+  { n: "\u0422\u0443\u0440\u0431\u043E-\u0428\u0432\u0430\u0431\u0440\u0430", models: ["steam", "stick"] },
+  // паровая швабра + вертикальный
+  { n: "\u0426\u0438\u043A\u043B\u043E\u043D", models: ["cyclone", "shopvac", "construct"] },
+  // циклон + промышленный + строительный
+  { n: "\u0412\u0438\u0445\u0440\u0451\u043A", models: ["vikhr"] },
   // «Вихрь» (СССР) 🌪️
-  { n: "\u041C\u0435\u0442\u0451\u043B\u043A\u0438\u043D", m: "upright" },
-  // башенный 🧹
-  { n: "\u0422\u0443\u0440\u0431\u043E-\u0429\u0451\u0442\u043A\u0430", m: "canister" },
+  { n: "\u041C\u0435\u0442\u0451\u043B\u043A\u0438\u043D", models: ["upright", "retro"] },
+  // башенный + ретро
+  { n: "\u0422\u0443\u0440\u0431\u043E-\u0429\u0451\u0442\u043A\u0430", models: ["canister"] },
   // канистровый 🧳
-  { n: "\u0410\u043A\u0432\u0430\u0444\u0438\u043B\u044C\u0442\u0440", m: "washer" },
+  { n: "\u0410\u043A\u0432\u0430\u0444\u0438\u043B\u044C\u0442\u0440", models: ["washer"] },
   // моющий 💧
-  { n: "\u0420\u0430\u043A\u0435\u0442\u0447\u0438\u043A", m: "raketa" },
+  { n: "\u0420\u0430\u043A\u0435\u0442\u0447\u0438\u043A", models: ["raketa"] },
   // ракета (СССР) 🚀
-  { n: "\u041F\u044B\u043B\u0435\u0441\u043E\u0441\u0438\u043A", m: "robot", any: true }
-  // заказ Марка: любой вид пылесоса; в соперниках — ЗОЛОТОЙ 🥇
+  { n: "\u041F\u044B\u043B\u0435\u0441\u043E\u0441\u0438\u043A", models: ["futuristic", "drone"], golden: true }
+  // золотой турбо + золотой дрон 🥇
 ];
-var nickModelIdx = (nick) => Math.max(0, MODELS.findIndex((mm) => mm.id === nick.m));
+var MODEL_IDX = (id) => Math.max(0, MODELS.findIndex((mm) => mm.id === id));
+var nickFirstModel = (nick) => MODEL_IDX(nick.models && nick.models[0] || "robot");
+var nickRandModel = (nick) => MODEL_IDX(nick.models[Math.floor(Math.random() * nick.models.length)]);
 var selNick = (() => {
   try {
     const n = localStorage.getItem("castle_kart_nick") || "";
@@ -29204,8 +29206,8 @@ function spawnRacers() {
   const used = /* @__PURE__ */ new Set([selColor]);
   for (let k = 0; k < NRIV; k++) {
     const nk = rivPool[k];
-    const golden = nk.n === "\u041F\u044B\u043B\u0435\u0441\u043E\u0441\u0438\u043A";
-    let cm = golden || nk.any ? Math.floor(Math.random() * MODELS.length) : nickModelIdx(nk), cc = (selColor + 1 + k) % COLORS.length;
+    const golden = !!nk.golden;
+    let cm = nickRandModel(nk), cc = (selColor + 1 + k) % COLORS.length;
     while (used.has(cc))
       cc = (cc + 1) % COLORS.length;
     used.add(cc);
@@ -29811,7 +29813,7 @@ DIFFS.forEach((dd, i) => {
 var nicksBox = el("nicks");
 function buildNicks() {
   nicksBox.innerHTML = "";
-  const opts = [{ n: "", em: "\u{1F9F9}" }, ...NICKPOOL.map((p) => ({ n: p.n, em: p.n === "\u041F\u044B\u043B\u0435\u0441\u043E\u0441\u0438\u043A" ? "\u{1F947}" : MODELS[nickModelIdx(p)].em }))];
+  const opts = [{ n: "", em: "\u{1F9F9}" }, ...NICKPOOL.map((p) => ({ n: p.n, em: p.golden ? "\u{1F947}" : MODELS[nickFirstModel(p)].em }))];
   opts.forEach((o) => {
     const b = document.createElement("div");
     b.className = "diff" + (o.n === selNick ? " sel" : "");
