@@ -21317,6 +21317,103 @@ var TorusGeometry = class _TorusGeometry extends BufferGeometry {
     return new _TorusGeometry(data.radius, data.tube, data.radialSegments, data.tubularSegments, data.arc);
   }
 };
+var TubeGeometry = class _TubeGeometry extends BufferGeometry {
+  constructor(path = new QuadraticBezierCurve3(new Vector3(-1, -1, 0), new Vector3(-1, 1, 0), new Vector3(1, 1, 0)), tubularSegments = 64, radius = 1, radialSegments = 8, closed = false) {
+    super();
+    this.type = "TubeGeometry";
+    this.parameters = {
+      path,
+      tubularSegments,
+      radius,
+      radialSegments,
+      closed
+    };
+    const frames = path.computeFrenetFrames(tubularSegments, closed);
+    this.tangents = frames.tangents;
+    this.normals = frames.normals;
+    this.binormals = frames.binormals;
+    const vertex2 = new Vector3();
+    const normal = new Vector3();
+    const uv = new Vector2();
+    let P = new Vector3();
+    const vertices = [];
+    const normals = [];
+    const uvs = [];
+    const indices = [];
+    generateBufferData();
+    this.setIndex(indices);
+    this.setAttribute("position", new Float32BufferAttribute(vertices, 3));
+    this.setAttribute("normal", new Float32BufferAttribute(normals, 3));
+    this.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
+    function generateBufferData() {
+      for (let i = 0; i < tubularSegments; i++) {
+        generateSegment(i);
+      }
+      generateSegment(closed === false ? tubularSegments : 0);
+      generateUVs();
+      generateIndices();
+    }
+    function generateSegment(i) {
+      P = path.getPointAt(i / tubularSegments, P);
+      const N = frames.normals[i];
+      const B = frames.binormals[i];
+      for (let j = 0; j <= radialSegments; j++) {
+        const v = j / radialSegments * Math.PI * 2;
+        const sin = Math.sin(v);
+        const cos = -Math.cos(v);
+        normal.x = cos * N.x + sin * B.x;
+        normal.y = cos * N.y + sin * B.y;
+        normal.z = cos * N.z + sin * B.z;
+        normal.normalize();
+        normals.push(normal.x, normal.y, normal.z);
+        vertex2.x = P.x + radius * normal.x;
+        vertex2.y = P.y + radius * normal.y;
+        vertex2.z = P.z + radius * normal.z;
+        vertices.push(vertex2.x, vertex2.y, vertex2.z);
+      }
+    }
+    function generateIndices() {
+      for (let j = 1; j <= tubularSegments; j++) {
+        for (let i = 1; i <= radialSegments; i++) {
+          const a = (radialSegments + 1) * (j - 1) + (i - 1);
+          const b = (radialSegments + 1) * j + (i - 1);
+          const c = (radialSegments + 1) * j + i;
+          const d = (radialSegments + 1) * (j - 1) + i;
+          indices.push(a, b, d);
+          indices.push(b, c, d);
+        }
+      }
+    }
+    function generateUVs() {
+      for (let i = 0; i <= tubularSegments; i++) {
+        for (let j = 0; j <= radialSegments; j++) {
+          uv.x = i / tubularSegments;
+          uv.y = j / radialSegments;
+          uvs.push(uv.x, uv.y);
+        }
+      }
+    }
+  }
+  copy(source) {
+    super.copy(source);
+    this.parameters = Object.assign({}, source.parameters);
+    return this;
+  }
+  toJSON() {
+    const data = super.toJSON();
+    data.path = this.parameters.path.toJSON();
+    return data;
+  }
+  static fromJSON(data) {
+    return new _TubeGeometry(
+      new Curves[data.path.type]().fromJSON(data.path),
+      data.tubularSegments,
+      data.radius,
+      data.radialSegments,
+      data.closed
+    );
+  }
+};
 var RawShaderMaterial = class extends ShaderMaterial {
   constructor(parameters) {
     super(parameters);
@@ -24547,7 +24644,12 @@ var worldGroup = new Group();
 scene.add(worldGroup);
 var arrowMat = new MeshBasicMaterial({ map: arrowTex, transparent: true, depthWrite: false });
 var APRON = 14;
-function buildRoadMesh(tex) {
+function shinyMat(tex) {
+  const m = new MeshStandardMaterial({ map: tex, metalness: 1, roughness: 0.24 });
+  m.envMapIntensity = 1.6;
+  return m;
+}
+function buildRoadMesh(tex, shiny) {
   const pos = [], uv = [], idx = [];
   for (let i = 0; i <= M; i++) {
     const p = pts[i], s = sideAt(i), y = elev(i / M) + 0.05;
@@ -24565,11 +24667,13 @@ function buildRoadMesh(tex) {
   geo.setAttribute("uv", new Float32BufferAttribute(uv, 2));
   geo.setIndex(idx);
   geo.computeVertexNormals();
-  const road = new Mesh(geo, new MeshStandardMaterial({ map: tex, roughness: 0.9 }));
+  const road = new Mesh(geo, shiny ? shinyMat(tex) : new MeshStandardMaterial({ map: tex, roughness: 0.9 }));
   road.receiveShadow = true;
+  if (shiny)
+    road.userData.noToon = true;
   worldGroup.add(road);
 }
-function buildApron(sign2, tex) {
+function buildApron(sign2, tex, shiny) {
   const pos = [], uv = [], idx = [];
   for (let i = 0; i <= M; i++) {
     const p = pts[i], s = sideAt(i), y = elev(i / M) + 0.04;
@@ -24587,11 +24691,15 @@ function buildApron(sign2, tex) {
   geo.setAttribute("uv", new Float32BufferAttribute(uv, 2));
   geo.setIndex(idx);
   geo.computeVertexNormals();
-  const a2 = new Mesh(geo, new MeshStandardMaterial({ map: tex, roughness: 1, side: DoubleSide }));
+  const gm = shiny ? shinyMat(tex) : new MeshStandardMaterial({ map: tex, roughness: 1, side: DoubleSide });
+  gm.side = DoubleSide;
+  const a2 = new Mesh(geo, gm);
   a2.receiveShadow = true;
+  if (shiny)
+    a2.userData.noToon = true;
   worldGroup.add(a2);
 }
-function buildWallMesh(sign2, mat, HWALL) {
+function buildWallMesh(sign2, mat, HWALL, shiny) {
   const pos = [], uv = [], idx = [];
   for (let i = 0; i <= M; i++) {
     const p = pts[i], s = sideAt(i), y = elev(i / M);
@@ -24612,6 +24720,10 @@ function buildWallMesh(sign2, mat, HWALL) {
   geo.computeVertexNormals();
   const w = new Mesh(geo, mat);
   w.castShadow = true;
+  if (shiny) {
+    mat.envMapIntensity = 1.6;
+    w.userData.noToon = true;
+  }
   worldGroup.add(w);
 }
 function buildArrows() {
@@ -24817,7 +24929,7 @@ function buildBackdrop(L) {
   if (\u0411\u0415\u0417_\u0425\u041E\u041B\u041C\u041E\u0412.includes(L.id))
     return;
   const c = trackCenter();
-  const \u0445\u043E\u043B\u043C\u0426\u0432\u0435\u0442 = L.id === "beach" ? 14205050 : L.id === "ice" ? 13624303 : L.id === "dino" ? 4877112 : L.id === "carpet" ? 6965872 : 4160058;
+  const \u0445\u043E\u043B\u043C\u0426\u0432\u0435\u0442 = L.id === "beach" ? 14205050 : L.id === "ice" ? 13624303 : L.id === "dino" ? 4877112 : L.id === "carpet" ? 6965872 : L.id === "gold" ? 13936682 : 4160058;
   const \u0434\u0430\u043B\u044C\u043D\u0438\u0439 = new Group();
   \u0434\u0430\u043B\u044C\u043D\u0438\u0439.userData.noToon = true;
   const N = 26;
@@ -26239,16 +26351,20 @@ function buildWorld() {
   hemi.intensity = Math.min(L.hemiI, 0.7);
   amb.intensity = Math.min(L.ambI, 0.3);
   sun.intensity = Math.max(L.sunI, 1.15);
-  buildRoadMesh(L.road);
-  buildApron(1, L.ground);
-  buildApron(-1, L.ground);
+  const shiny = L.id === "gold";
+  buildRoadMesh(L.road, shiny);
+  buildApron(1, L.ground, shiny);
+  buildApron(-1, L.ground, shiny);
   const wm = L.wallMat();
-  buildWallMesh(1, wm, L.wallH);
-  buildWallMesh(-1, wm, L.wallH);
-  const gr = new Mesh(new PlaneGeometry(1e3, 1e3), new MeshStandardMaterial({ map: L.ground, roughness: 1 }));
+  buildWallMesh(1, wm, L.wallH, shiny);
+  buildWallMesh(-1, wm, L.wallH, shiny);
+  const grMat = shiny ? shinyMat(L.ground) : new MeshStandardMaterial({ map: L.ground, roughness: 1 });
+  const gr = new Mesh(new PlaneGeometry(1e3, 1e3), grMat);
   gr.rotation.x = -Math.PI / 2;
   gr.position.y = -0.02;
   gr.receiveShadow = true;
+  if (shiny)
+    gr.userData.noToon = true;
   worldGroup.add(gr);
   buildArrows();
   buildGate();
@@ -26305,6 +26421,8 @@ function toonMat(m) {
 }
 function toonify(root) {
   root.traverse((o) => {
+    if (o.userData && o.userData.noToon)
+      return;
     if (o.isMesh && o.material && o.material.isMeshStandardMaterial) {
       o.material = toonMat(o.material);
     }
@@ -26318,6 +26436,24 @@ function flag(color) {
   const f = new Mesh(new PlaneGeometry(0.6, 0.4), new MeshStandardMaterial({ color, roughness: 0.6, side: DoubleSide, metalness: 0.1 }));
   f.position.set(0.3, 1, 0);
   g.add(f);
+  return g;
+}
+function makeHose(points, radius = 0.08, color = 2764600) {
+  const curve2 = new CatmullRomCurve3(points.map((p) => new Vector3(p[0], p[1], p[2])));
+  const g = new Group();
+  g.add(new Mesh(
+    new TubeGeometry(curve2, 36, radius, 8, false),
+    new MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.12 })
+  ));
+  const ridgeMat = new MeshStandardMaterial({ color: 1316380, roughness: 0.75 });
+  const N = 11, up = new Vector3(0, 0, 1);
+  for (let i = 1; i < N; i++) {
+    const t2 = i / N, pos = curve2.getPointAt(t2), tan = curve2.getTangentAt(t2).normalize();
+    const ring = new Mesh(new TorusGeometry(radius * 1.22, radius * 0.34, 6, 10), ridgeMat);
+    ring.position.copy(pos);
+    ring.quaternion.setFromUnitVectors(up, tan);
+    g.add(ring);
+  }
   return g;
 }
 function buildRobot(color) {
@@ -26433,6 +26569,7 @@ function buildCanister(color) {
   wand.position.set(0, 0.9, -0.45);
   wand.rotation.x = 0.7;
   g.add(wand);
+  g.add(makeHose([[0, 0.62, -0.05], [0.22, 0.86, -0.3], [-0.2, 0.66, -0.52], [0.05, 0.5, -0.7]]));
   const led = new Mesh(new BoxGeometry(0.5, 0.1, 0.05), emissive(3531007, 1));
   led.position.set(0, 0.62, 0.95);
   g.add(led);
@@ -28959,6 +29096,94 @@ function placeObstacle(maker, i, lat) {
   items.push(it);
   return it;
 }
+var groundTex_gold = makeTex(64, 64, (g, w, h) => {
+  g.fillStyle = "#caa12a";
+  g.fillRect(0, 0, w, h);
+  for (let y = 0; y < h; y += 8)
+    for (let x = 0; x < w; x += 8) {
+      g.fillStyle = (x / 8 + y / 8) % 2 ? "#e8c24a" : "#b98d22";
+      g.fillRect(x, y, 8, 8);
+    }
+  for (let k = 0; k < 80; k++) {
+    g.fillStyle = "rgba(255,245,200," + (0.2 + Math.random() * 0.4).toFixed(2) + ")";
+    g.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+  }
+}, [40, 40]);
+var roadTex_gold = makeTex(64, 128, (g, w, h) => {
+  g.fillStyle = "#b8901f";
+  g.fillRect(0, 0, w, h);
+  for (let y = 0; y < h; y += 16) {
+    g.fillStyle = y / 16 % 2 ? "#c99a24" : "#d8ab30";
+    g.fillRect(0, y, w, 15);
+  }
+  g.strokeStyle = "#fff0b0";
+  g.lineWidth = 3;
+  g.strokeRect(6, 6, w - 12, h - 12);
+  for (let y = 0; y < h; y += 22) {
+    g.fillStyle = "#fff0b0";
+    g.fillRect(w / 2 - 1, y, 2, 11);
+  }
+}, [1, 46]);
+function makeIngot() {
+  const g = new Group();
+  const gmat = new MeshStandardMaterial({ color: 16765773, metalness: 1, roughness: 0.16 });
+  gmat.envMapIntensity = 1.8;
+  const bar = new Mesh(new CylinderGeometry(0.55, 0.8, 0.6, 4), gmat);
+  bar.rotation.y = Math.PI / 4;
+  bar.scale.set(1.7, 1, 1);
+  bar.position.y = 0.35;
+  bar.castShadow = true;
+  bar.userData.noToon = true;
+  g.add(bar);
+  const shine = new Mesh(new BoxGeometry(1.2, 0.05, 0.5), emissive(16773824, 0.9));
+  shine.position.y = 0.66;
+  g.add(shine);
+  g.add(dangerRing());
+  g.userData.r = 1.2;
+  g.userData.sound = "clang";
+  return g;
+}
+function makePortalGold() {
+  return makePortalColored(16766720, 16771488, 16764730);
+}
+function decor_gold() {
+  const gm = new MeshStandardMaterial({ color: 16765773, metalness: 1, roughness: 0.18 });
+  gm.envMapIntensity = 1.7;
+  const gm2 = new MeshStandardMaterial({ color: 15253050, metalness: 1, roughness: 0.22 });
+  gm2.envMapIntensity = 1.7;
+  const \u041C = (mesh) => {
+    mesh.userData.noToon = true;
+    return mesh;
+  };
+  for (let i = 0; i < M; i += 64) {
+    const p = pts[i], s = sideAt(i);
+    [-1, 1].forEach((d) => {
+      const x = p.x + s.x * (HW + 7) * d, z = p.z + s.z * (HW + 7) * d;
+      const col = \u041C(new Mesh(new CylinderGeometry(1, 1.2, 9, 16), gm));
+      col.position.set(x, 4.5, z);
+      col.castShadow = true;
+      worldGroup.add(col);
+      const cap = \u041C(new Mesh(new SphereGeometry(1.1, 16, 12), gm2));
+      cap.position.set(x, 9.2, z);
+      worldGroup.add(cap);
+      const ball = new Mesh(new SphereGeometry(0.6, 14, 12), emissive(16773808, 0.7));
+      ball.position.set(x, 10.2, z);
+      worldGroup.add(ball);
+    });
+    if (i % 128 === 0) {
+      const x = p.x + s.x * (HW + 4), z = p.z + s.z * (HW + 4);
+      for (let k = 0; k < 4; k++) {
+        const b = \u041C(new Mesh(new BoxGeometry(1, 0.4, 0.6), gm));
+        b.position.set(x + k % 2 * 0.5 - 0.25, 0.2 + Math.floor(k / 2) * 0.42, z);
+        b.castShadow = true;
+        worldGroup.add(b);
+      }
+    }
+  }
+}
+var LOC_gold = { id: "gold", name: "\u0417\u043E\u043B\u043E\u0442\u043E\u0439 \u0431\u0430\u043D\u043A", em: "\u{1F3E6}", locked: "gold", sky: skyGrad("#6a4e0a", "#c9971f", "#ffe9a0"), fog: [14201402, 140, 420], hemiS: 16773312, hemiG: 6966800, hemiI: 0.9, ambI: 0.34, sunI: 1.6, ground: groundTex_gold, road: roadTex_gold, wallMat: () => new MeshStandardMaterial({ color: 15254090, metalness: 0.9, roughness: 0.25, side: DoubleSide }), wallH: 2.6, decor: decor_gold };
+LOCATIONS.push(LOC_gold);
+OBSTACLES.gold = [makeIngot, makeIngot];
 function makePortal() {
   const g = new Group();
   const ring = new Mesh(new TorusGeometry(1.7, 0.26, 14, 36), emissive(10181119, 1.8));
@@ -28981,7 +29206,7 @@ function makePortal() {
 }
 function placePortal(i) {
   const p = pts[i].clone();
-  const mesh = makePortal();
+  const mesh = LOCATIONS[selLoc].id === "gold" ? makePortalGold() : makePortal();
   mesh.position.copy(p);
   mesh.position.y += elev(i / M);
   mesh.rotation.y = Math.atan2(tans[i].x, tans[i].z);
@@ -29053,7 +29278,8 @@ function buildItems() {
     for (let c = -1; c <= 1; c++)
       placeIdx("coin", i, lane + c * 1.4);
   }
-  const poopStep = LOCATIONS[selLoc].id === "sewer" ? 34 : DIFFS[diff].poopStorm ? 58 : 110;
+  const gold = LOCATIONS[selLoc].id === "gold";
+  const poopStep = LOCATIONS[selLoc].id === "sewer" ? 34 : gold ? 520 : DIFFS[diff].poopStorm ? 58 : 110;
   for (let i = 40; i < M - 10; i += poopStep) {
     let idx = i;
     for (const b of boostSet) {
@@ -29066,12 +29292,12 @@ function buildItems() {
   for (let i = 150; i < M - 30; i += portalStep) {
     placePortal(i);
   }
-  placePortalTyped(makePortalStart, "portal_start", Math.floor(M * 0.46), 0);
+  placePortalTyped(gold ? makePortalGold : makePortalStart, "portal_start", Math.floor(M * 0.46), 0);
   placePortalTyped(makePortalBonus, "portal_bonus", Math.floor(M * 0.3), 0);
   [0.16, 0.56].forEach((fr) => {
     const i = Math.floor(M * fr);
     const tgt = (i + Math.floor(M * 0.22)) % M;
-    placePortalTyped(makePortalSecret, "portal_shortcut", i, (fr < 0.4 ? -1 : 1) * (HW - 1.6), { target: tgt });
+    placePortalTyped(gold ? makePortalGold : makePortalSecret, "portal_shortcut", i, (fr < 0.4 ? -1 : 1) * (HW - 1.6), { target: tgt });
   });
   const gap = DIFFS[diff].gap;
   const pool = OBSTACLES[LOCATIONS[selLoc].id] || OBSTACLES.castle;
@@ -29082,7 +29308,7 @@ function buildItems() {
         idx = b + 20;
     }
     const roll = Math.random();
-    let kind = roll < 0.64 ? "obstacle" : roll < 0.72 ? "poop" : roll < 0.88 ? "hole" : "oil";
+    let kind = gold ? roll < 0.9 ? "obstacle" : "hole" : roll < 0.64 ? "obstacle" : roll < 0.72 ? "poop" : roll < 0.88 ? "hole" : "oil";
     if (DIFFS[diff].noHazard && (kind === "oil" || kind === "hole"))
       kind = "obstacle";
     const lat = (Math.random() < 0.5 ? -1 : 1) * (2.5 + Math.random() * 3.5);
@@ -29847,17 +30073,27 @@ function refreshGoldSwatch() {
 }
 refreshGoldSwatch();
 var locsBox = el("locs");
-LOCATIONS.forEach((l, i) => {
-  const b = document.createElement("div");
-  b.className = "diff" + (i === selLoc ? " sel" : "");
-  b.textContent = l.em + " " + l.name;
-  b.onclick = () => {
-    selLoc = i;
-    [...locsBox.children].forEach((e, j) => e.classList.toggle("sel", j === i));
-    buildWorld();
-  };
-  locsBox.appendChild(b);
-});
+function refreshLocs() {
+  locsBox.innerHTML = "";
+  LOCATIONS.forEach((l, i) => {
+    const locked = l.locked === "gold" && !goldUnlocked;
+    const b = document.createElement("div");
+    b.className = "diff" + (i === selLoc ? " sel" : "") + (locked ? " locked" : "");
+    b.textContent = (locked ? "\u{1F512} " : "") + l.em + " " + l.name;
+    b.onclick = () => {
+      if (locked) {
+        if (typeof openAchPanel === "function")
+          openAchPanel();
+        return;
+      }
+      selLoc = i;
+      [...locsBox.children].forEach((e, j) => e.classList.toggle("sel", j === i));
+      buildWorld();
+    };
+    locsBox.appendChild(b);
+  });
+}
+refreshLocs();
 var diffsBox = el("diffs");
 DIFFS.forEach((dd, i) => {
   const b = document.createElement("div");
@@ -29922,6 +30158,10 @@ function showMenu() {
   hideExtras();
   try {
     refreshGoldSwatch();
+  } catch (e) {
+  }
+  try {
+    refreshLocs();
   } catch (e) {
   }
   setDrivingControls(false);
