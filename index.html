@@ -28329,13 +28329,10 @@ function buildConstruct(color) {
   const motor = new Mesh(new CylinderGeometry(0.4, 0.45, 0.45, 16), metal(13620445));
   motor.position.y = 1.9;
   g.add(motor);
-  const hose = new Mesh(new TorusGeometry(0.6, 0.13, 10, 20, Math.PI * 1.1), plastic(3356223));
-  hose.position.set(-0.5, 1, -0.3);
-  hose.rotation.set(Math.PI / 2, 0, 0.5);
-  g.add(hose);
   const noz = new Mesh(new BoxGeometry(0.9, 0.18, 0.5), plastic(2236968));
   noz.position.set(0, 0.12, -1);
   g.add(noz);
+  g.add(makeHose([[0, 1.15, -0.5], [0.36, 0.85, -0.72], [-0.32, 0.56, -0.9], [0, 0.3, -0.95]], 0.14));
   const handle = new Mesh(new TorusGeometry(0.5, 0.06, 8, 18, Math.PI), metal(16764730));
   handle.position.set(0, 2.1, 0.4);
   handle.rotation.x = Math.PI / 2;
