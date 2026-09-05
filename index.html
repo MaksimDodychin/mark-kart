@@ -26569,7 +26569,7 @@ function buildCanister(color) {
   wand.position.set(0, 0.9, -0.45);
   wand.rotation.x = 0.7;
   g.add(wand);
-  g.add(makeHose([[0, 0.62, -0.05], [0.22, 0.86, -0.3], [-0.2, 0.66, -0.52], [0.05, 0.5, -0.7]]));
+  g.add(makeHose([[0, 1.5, 0.1], [0.24, 1.18, 0.02], [-0.22, 0.86, 0.2], [0, 0.58, 0.34]]));
   const led = new Mesh(new BoxGeometry(0.5, 0.1, 0.05), emissive(3531007, 1));
   led.position.set(0, 0.62, 0.95);
   g.add(led);
@@ -27082,6 +27082,7 @@ var MODELS = [
   { id: "retro", name: "\u0420\u0435\u0442\u0440\u043E", em: "\u{1F9FA}", build: buildRetro, seat: 0.95 },
   { id: "futuristic", name: "\u0422\u0443\u0440\u0431\u043E", em: "\u{1F3CE}\uFE0F", build: buildFuturistic, seat: 0.85 },
   { id: "vikhr", name: "\u0412\u0438\u0445\u0440\u044C (\u0421\u0421\u0421\u0420)", em: "\u{1F32A}\uFE0F", build: buildVikhr, seat: 1.85 },
+  { id: "raketa", name: "\u0420\u0430\u043A\u0435\u0442\u0430 (\u0421\u0421\u0421\u0420)", em: "\u{1F680}", build: buildRaketa, seat: 1 },
   { id: "mop", name: "\u0420\u043E\u0431\u043E\u0442-\u043C\u043E\u0439\u0449\u0438\u043A", em: "\u{1F9FD}", build: buildMop, seat: 0.65, wet: true },
   { id: "cyclone", name: "\u0426\u0438\u043A\u043B\u043E\u043D\u043D\u044B\u0439", em: "\u{1F300}", build: buildCyclone, seat: 1 },
   { id: "steam", name: "\u041F\u0430\u0440\u043E\u0432\u0430\u044F \u0448\u0432\u0430\u0431\u0440\u0430", em: "\u{1F4A8}", build: buildSteam, seat: 1, wet: true },
@@ -27091,8 +27092,7 @@ var MODELS = [
   { id: "pool", name: "\u0411\u0430\u0441\u0441\u0435\u0439\u043D\u044B\u0439 \u0440\u043E\u0431\u043E\u0442", em: "\u{1F3CA}", build: buildPool, seat: 1 },
   { id: "drone", name: "\u0414\u0440\u043E\u043D-\u043F\u044B\u043B\u0435\u0441\u043E\u0441", em: "\u{1F681}", build: buildDrone, seat: 1 },
   { id: "construct", name: "\u0421\u0442\u0440\u043E\u0438\u0442\u0435\u043B\u044C\u043D\u044B\u0439", em: "\u{1F527}", build: buildConstruct, seat: 1.7 },
-  { id: "washer", name: "\u041C\u043E\u044E\u0449\u0438\u0439 \u043F\u044B\u043B\u0435\u0441\u043E\u0441", em: "\u{1F4A7}", build: buildWasher, seat: 1, wet: true },
-  { id: "raketa", name: "\u0420\u0430\u043A\u0435\u0442\u0430 (\u0421\u0421\u0421\u0420)", em: "\u{1F680}", build: buildRaketa, seat: 1 }
+  { id: "washer", name: "\u041C\u043E\u044E\u0449\u0438\u0439 \u043F\u044B\u043B\u0435\u0441\u043E\u0441", em: "\u{1F4A7}", build: buildWasher, seat: 1, wet: true }
 ];
 function makeDriver() {
   const g = new Group();
