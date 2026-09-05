@@ -1,9 +1,27 @@
-// service worker (версия по содержимому: 2f3bd04da6)
+// service worker (версия по содержимому: 047bc14348)
 // страница игры — network-first (всегда свежая при интернете), офлайн — из кэша.
-const CACHE = 'mark-kart-2f3bd04da6';
+const CACHE = 'mark-kart-047bc14348';
 const ASSETS = ['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./icon-512-maskable.png','./apple-touch-icon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())); });
-self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
+self.addEventListener('activate', e => {
+  e.waitUntil((async () => {
+    const ks = await caches.keys();
+    await Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)));
+    await self.clients.claim();
+    // 🔄 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ СТАРЫХ КОПИЙ.
+    // Даже если на телефоне лежит старая страница без нового обновлятора, браузер всё равно
+    // скачивает свежий sw.js при заходе. Новый воркер сам перезагружает открытые окна
+    // на свежий адрес — и застрявшая версия обновляется без всяких кнопок (Марк, 23.08).
+    try {
+      const окна = await self.clients.matchAll({ type: 'window' });
+      for (const w of окна) {
+        const базовый = w.url.split('?')[0];
+        await w.navigate(базовый + '?v=' + Date.now());
+      }
+    } catch (_) {}
+  })());
+});
+
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const isDoc = e.request.mode === 'navigate' || e.request.destination === 'document';
