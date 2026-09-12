@@ -56,6 +56,27 @@
   .tc[data-key="ArrowUp"]{height:86px;background:linear-gradient(180deg,#7CFC9B99,#18a95f88);}
   .tc[data-key="ArrowDown"]{height:58px;background:linear-gradient(180deg,#ff786688,#c0392b88);}
   .tc:active,.tc.down{transform:translateY(5px);box-shadow:0 3px 0 #0007, inset 0 0 24px #fff4;}
+  /* ═══ 👥 ВДВОЁМ (заказ Марка 12.09.2026) ═══ экран пополам: сверху 1-й, снизу 2-й */
+  #splitLine{position:fixed;left:0;right:0;top:50%;height:4px;margin-top:-2px;z-index:9;
+    background:linear-gradient(90deg,#0000,#ffffffcc,#0000);display:none;pointer-events:none;}
+  body.coop.driving #splitLine{display:block;}
+  body.coop.driving #touchControls{display:none;}
+  body.coop.driving #hud{display:none;}
+  #coopPads{position:fixed;inset:0;z-index:9;display:none;pointer-events:none;}
+  body.coop.driving #coopPads{display:block;}
+  .cpad{position:absolute;left:max(12px,env(safe-area-inset-left));pointer-events:auto;
+    display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(2,46px);gap:7px;}
+  .cpad.p1{bottom:calc(50% + 10px);} .cpad.p2{bottom:max(12px,env(safe-area-inset-bottom));}
+  .cpad .tc{height:46px;border-radius:15px;font-size:21px;box-shadow:0 5px 0 #0006, inset 0 0 14px #ffffff22;}
+  .cpad .up{grid-column:2;grid-row:1;} .cpad .dn{grid-column:2;grid-row:2;}
+  .cpad .lf{grid-column:1;grid-row:2;} .cpad .rt{grid-column:3;grid-row:2;}
+  #coopHud{position:fixed;inset:0;z-index:8;pointer-events:none;display:none;}
+  body.coop.driving #coopHud{display:block;}
+  .chalf{position:absolute;right:max(12px,env(safe-area-inset-right));
+    background:#0e1b38cc;border:2px solid #ffffff33;border-radius:12px;padding:5px 11px;
+    font-size:15px;font-weight:900;text-shadow:0 2px 0 #0008;white-space:nowrap;}
+  .chalf.p1{top:max(10px,env(safe-area-inset-top));border-color:#7CFC9B88;}
+  .chalf.p2{top:calc(50% + 10px);border-color:#ffd34d88;}
   .screen{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px;overflow:auto;background:radial-gradient(ellipse at center,#0e1b38dd,#05060ccc);}
   .screen.hidden{display:none;}
   h1{font-size:clamp(24px,4vw,46px);text-shadow:0 4px 0 #0007,0 0 24px #4d9fff66;letter-spacing:1px;}
@@ -218,6 +239,21 @@
     <div class="chip">🏆 Рекорд: <span id="rec">0</span></div>
   </div>
 </div>
+<div id="splitLine"></div>
+<div id="coopHud">
+  <div class="chalf p1">🟢 1-й · 🏁 <span id="lap1">1</span>/3 · 🪙 <span id="coin1">0</span></div>
+  <div class="chalf p2">🟡 2-й · 🏁 <span id="lap2">1</span>/3 · 🪙 <span id="coin2">0</span></div>
+</div>
+<div id="coopPads" aria-label="Управление вдвоём">
+  <div class="cpad p1">
+    <div class="tc up" data-key="ArrowUp">▲</div><div class="tc dn" data-key="ArrowDown">▼</div>
+    <div class="tc lf" data-key="ArrowLeft">◀</div><div class="tc rt" data-key="ArrowRight">▶</div>
+  </div>
+  <div class="cpad p2">
+    <div class="tc up" data-key="KeyW">▲</div><div class="tc dn" data-key="KeyS">▼</div>
+    <div class="tc lf" data-key="KeyA">◀</div><div class="tc rt" data-key="KeyD">▶</div>
+  </div>
+</div>
 <div id="count" class="hidden"></div>
 <div id="bonusUI" class="hidden"><div class="bn">🌟 БОНУС! 🌟</div><div class="bt">Собери монетки! <b id="bonusTimer">20.0</b> сек</div><div id="bonusScore">Ты: 0 🪙 · соперники: 0 🪙</div></div>
 <div id="touchControls" aria-label="Управление на телефоне">
@@ -252,8 +288,11 @@
   <div class="pick-title">Сложность:</div>
   <div id="diffs"></div>
   <button id="play">▶️ На старт!</button>
+  <button id="play2">👥 Вдвоём на одном экране</button>
   <button id="achBtn">🏆 Достижения</button>
-  <div class="hint">Компьютер: стрелки · R — заново · M — звук. Телефон: кнопки снизу.</div>
+  <div class="hint">Компьютер: стрелки · R — заново · M — звук. Телефон: кнопки снизу.<br>
+    👥 <b>Вдвоём:</b> экран делится пополам, сверху 1-й игрок, снизу 2-й, у каждого свои стрелочки.
+    Соперников-ботов в этом режиме нет — только вы двое. На компьютере 2-й игрок едет на <b>W A S D</b>.</div>
 </div>
 
 <!-- ФИНИШ -->
@@ -2567,11 +2606,11 @@ var Vector3 = class _Vector3 {
     this.z = vz + qw * tz + qx * ty - qy * tx;
     return this;
   }
-  project(camera2) {
-    return this.applyMatrix4(camera2.matrixWorldInverse).applyMatrix4(camera2.projectionMatrix);
+  project(camera3) {
+    return this.applyMatrix4(camera3.matrixWorldInverse).applyMatrix4(camera3.projectionMatrix);
   }
-  unproject(camera2) {
-    return this.applyMatrix4(camera2.projectionMatrixInverse).applyMatrix4(camera2.matrixWorld);
+  unproject(camera3) {
+    return this.applyMatrix4(camera3.projectionMatrixInverse).applyMatrix4(camera3.matrixWorld);
   }
   transformDirection(m) {
     const x = this.x, y = this.y, z = this.z;
@@ -3109,8 +3148,8 @@ function satForAxes(axes, v0, v1, v2, extents) {
     const r = extents.x * Math.abs(_testAxis.x) + extents.y * Math.abs(_testAxis.y) + extents.z * Math.abs(_testAxis.z);
     const p0 = v0.dot(_testAxis);
     const p1 = v1.dot(_testAxis);
-    const p2 = v2.dot(_testAxis);
-    if (Math.max(-Math.max(p0, p1, p2), Math.min(p0, p1, p2)) > r) {
+    const p22 = v2.dot(_testAxis);
+    if (Math.max(-Math.max(p0, p1, p22), Math.min(p0, p1, p22)) > r) {
       return false;
     }
   }
@@ -5093,15 +5132,15 @@ var Triangle = class _Triangle {
     }
     return _v3$1.x >= 0 && _v3$1.y >= 0 && _v3$1.x + _v3$1.y <= 1;
   }
-  static getUV(point, p1, p2, p3, uv1, uv2, uv3, target) {
+  static getUV(point, p1, p22, p3, uv1, uv2, uv3, target) {
     if (warnedGetUV === false) {
       console.warn("THREE.Triangle.getUV() has been renamed to THREE.Triangle.getInterpolation().");
       warnedGetUV = true;
     }
-    return this.getInterpolation(point, p1, p2, p3, uv1, uv2, uv3, target);
+    return this.getInterpolation(point, p1, p22, p3, uv1, uv2, uv3, target);
   }
-  static getInterpolation(point, p1, p2, p3, v1, v2, v3, target) {
-    if (this.getBarycoord(point, p1, p2, p3, _v3$1) === null) {
+  static getInterpolation(point, p1, p22, p3, v1, v2, v3, target) {
+    if (this.getBarycoord(point, p1, p22, p3, _v3$1) === null) {
       target.x = 0;
       target.y = 0;
       if ("z" in target)
@@ -7708,8 +7747,8 @@ var CubeCamera = class extends Object3D {
     const coordinateSystem = this.coordinateSystem;
     const cameras = this.children.concat();
     const [cameraPX, cameraNX, cameraPY, cameraNY, cameraPZ, cameraNZ] = cameras;
-    for (const camera2 of cameras)
-      this.remove(camera2);
+    for (const camera3 of cameras)
+      this.remove(camera3);
     if (coordinateSystem === WebGLCoordinateSystem) {
       cameraPX.up.set(0, 1, 0);
       cameraPX.lookAt(1, 0, 0);
@@ -7739,9 +7778,9 @@ var CubeCamera = class extends Object3D {
     } else {
       throw new Error("THREE.CubeCamera.updateCoordinateSystem(): Invalid coordinate system: " + coordinateSystem);
     }
-    for (const camera2 of cameras) {
-      this.add(camera2);
-      camera2.updateMatrixWorld();
+    for (const camera3 of cameras) {
+      this.add(camera3);
+      camera3.updateMatrixWorld();
     }
   }
   update(renderer2, scene2) {
@@ -7876,8 +7915,8 @@ var WebGLCubeRenderTarget = class extends WebGLRenderTarget {
     const currentMinFilter = texture.minFilter;
     if (texture.minFilter === LinearMipmapLinearFilter)
       texture.minFilter = LinearFilter;
-    const camera2 = new CubeCamera(1, 10, this);
-    camera2.update(renderer2, mesh);
+    const camera3 = new CubeCamera(1, 10, this);
+    camera3.update(renderer2, mesh);
     texture.minFilter = currentMinFilter;
     mesh.geometry.dispose();
     mesh.material.dispose();
@@ -7996,14 +8035,14 @@ var Plane = class {
 var _sphere$5 = /* @__PURE__ */ new Sphere();
 var _vector$7 = /* @__PURE__ */ new Vector3();
 var Frustum = class {
-  constructor(p0 = new Plane(), p1 = new Plane(), p2 = new Plane(), p3 = new Plane(), p4 = new Plane(), p5 = new Plane()) {
-    this.planes = [p0, p1, p2, p3, p4, p5];
+  constructor(p0 = new Plane(), p1 = new Plane(), p22 = new Plane(), p3 = new Plane(), p4 = new Plane(), p5 = new Plane()) {
+    this.planes = [p0, p1, p22, p3, p4, p5];
   }
-  set(p0, p1, p2, p3, p4, p5) {
+  set(p0, p1, p22, p3, p4, p5) {
     const planes = this.planes;
     planes[0].copy(p0);
     planes[1].copy(p1);
-    planes[2].copy(p2);
+    planes[2].copy(p22);
     planes[3].copy(p3);
     planes[4].copy(p4);
     planes[5].copy(p5);
@@ -9088,8 +9127,8 @@ function WebGLBackground(renderer2, cubemaps, cubeuvmaps, state2, objects, alpha
         );
         boxMesh.geometry.deleteAttribute("normal");
         boxMesh.geometry.deleteAttribute("uv");
-        boxMesh.onBeforeRender = function(renderer3, scene3, camera2) {
-          this.matrixWorld.copyPosition(camera2.matrixWorld);
+        boxMesh.onBeforeRender = function(renderer3, scene3, camera3) {
+          this.matrixWorld.copyPosition(camera3.matrixWorld);
         };
         Object.defineProperty(boxMesh.material, "envMap", {
           get: function() {
@@ -9682,10 +9721,10 @@ function WebGLClipping(properties) {
   this.endShadows = function() {
     renderingShadows = false;
   };
-  this.setGlobalState = function(planes, camera2) {
-    globalState = projectPlanes(planes, camera2, 0);
+  this.setGlobalState = function(planes, camera3) {
+    globalState = projectPlanes(planes, camera3, 0);
   };
-  this.setState = function(material, camera2, useCache) {
+  this.setState = function(material, camera3, useCache) {
     const planes = material.clippingPlanes, clipIntersection = material.clipIntersection, clipShadows = material.clipShadows;
     const materialProperties = properties.get(material);
     if (!localClippingEnabled || planes === null || planes.length === 0 || renderingShadows && !clipShadows) {
@@ -9698,7 +9737,7 @@ function WebGLClipping(properties) {
       const nGlobal = renderingShadows ? 0 : numGlobalPlanes, lGlobal = nGlobal * 4;
       let dstArray = materialProperties.clippingState || null;
       uniform.value = dstArray;
-      dstArray = projectPlanes(planes, camera2, lGlobal, useCache);
+      dstArray = projectPlanes(planes, camera3, lGlobal, useCache);
       for (let i = 0; i !== lGlobal; ++i) {
         dstArray[i] = globalState[i];
       }
@@ -9715,13 +9754,13 @@ function WebGLClipping(properties) {
     scope.numPlanes = numGlobalPlanes;
     scope.numIntersection = 0;
   }
-  function projectPlanes(planes, camera2, dstOffset, skipTransform) {
+  function projectPlanes(planes, camera3, dstOffset, skipTransform) {
     const nPlanes = planes !== null ? planes.length : 0;
     let dstArray = null;
     if (nPlanes !== 0) {
       dstArray = uniform.value;
       if (skipTransform !== true || dstArray === null) {
-        const flatSize = dstOffset + nPlanes * 4, viewMatrix = camera2.matrixWorldInverse;
+        const flatSize = dstOffset + nPlanes * 4, viewMatrix = camera3.matrixWorldInverse;
         viewNormalMatrix.getNormalMatrix(viewMatrix);
         if (dstArray === null || dstArray.length < flatSize) {
           dstArray = new Float32Array(flatSize);
@@ -13361,13 +13400,13 @@ function WebGLLights(extensions, capabilities) {
       state2.version = nextVersion++;
     }
   }
-  function setupView(lights, camera2) {
+  function setupView(lights, camera3) {
     let directionalLength = 0;
     let pointLength = 0;
     let spotLength = 0;
     let rectAreaLength = 0;
     let hemiLength = 0;
-    const viewMatrix = camera2.matrixWorldInverse;
+    const viewMatrix = camera3.matrixWorldInverse;
     for (let i = 0, l = lights.length; i < l; i++) {
       const light = lights[i];
       if (light.isDirectionalLight) {
@@ -13435,8 +13474,8 @@ function WebGLRenderState(extensions, capabilities) {
   function setupLights(useLegacyLights) {
     lights.setup(lightsArray, useLegacyLights);
   }
-  function setupLightsView(camera2) {
-    lights.setupView(lightsArray, camera2);
+  function setupLightsView(camera3) {
+    lights.setupView(lightsArray, camera3);
   }
   const state2 = {
     lightsArray,
@@ -13563,7 +13602,7 @@ function WebGLShadowMap(_renderer, _objects, _capabilities) {
   this.needsUpdate = false;
   this.type = PCFShadowMap;
   let _previousType = this.type;
-  this.render = function(lights, scene2, camera2) {
+  this.render = function(lights, scene2, camera3) {
     if (scope.enabled === false)
       return;
     if (scope.autoUpdate === false && scope.needsUpdate === false)
@@ -13628,10 +13667,10 @@ function WebGLShadowMap(_renderer, _objects, _capabilities) {
         _state.viewport(_viewport);
         shadow.updateMatrices(light, vp);
         _frustum = shadow.getFrustum();
-        renderObject(scene2, camera2, shadow.camera, light, this.type);
+        renderObject(scene2, camera3, shadow.camera, light, this.type);
       }
       if (shadow.isPointLightShadow !== true && this.type === VSMShadowMap) {
-        VSMPass(shadow, camera2);
+        VSMPass(shadow, camera3);
       }
       shadow.needsUpdate = false;
     }
@@ -13639,7 +13678,7 @@ function WebGLShadowMap(_renderer, _objects, _capabilities) {
     scope.needsUpdate = false;
     _renderer.setRenderTarget(currentRenderTarget, activeCubeFace, activeMipmapLevel);
   };
-  function VSMPass(shadow, camera2) {
+  function VSMPass(shadow, camera3) {
     const geometry = _objects.update(fullScreenMesh);
     if (shadowMaterialVertical.defines.VSM_SAMPLES !== shadow.blurSamples) {
       shadowMaterialVertical.defines.VSM_SAMPLES = shadow.blurSamples;
@@ -13655,13 +13694,13 @@ function WebGLShadowMap(_renderer, _objects, _capabilities) {
     shadowMaterialVertical.uniforms.radius.value = shadow.radius;
     _renderer.setRenderTarget(shadow.mapPass);
     _renderer.clear();
-    _renderer.renderBufferDirect(camera2, null, geometry, shadowMaterialVertical, fullScreenMesh, null);
+    _renderer.renderBufferDirect(camera3, null, geometry, shadowMaterialVertical, fullScreenMesh, null);
     shadowMaterialHorizontal.uniforms.shadow_pass.value = shadow.mapPass.texture;
     shadowMaterialHorizontal.uniforms.resolution.value = shadow.mapSize;
     shadowMaterialHorizontal.uniforms.radius.value = shadow.radius;
     _renderer.setRenderTarget(shadow.map);
     _renderer.clear();
-    _renderer.renderBufferDirect(camera2, null, geometry, shadowMaterialHorizontal, fullScreenMesh, null);
+    _renderer.renderBufferDirect(camera3, null, geometry, shadowMaterialHorizontal, fullScreenMesh, null);
   }
   function getDepthMaterial(object, material, light, type) {
     let result = null;
@@ -13710,10 +13749,10 @@ function WebGLShadowMap(_renderer, _objects, _capabilities) {
     }
     return result;
   }
-  function renderObject(object, camera2, shadowCamera, light, type) {
+  function renderObject(object, camera3, shadowCamera, light, type) {
     if (object.visible === false)
       return;
-    const visible = object.layers.test(camera2.layers);
+    const visible = object.layers.test(camera3.layers);
     if (visible && (object.isMesh || object.isLine || object.isPoints)) {
       if ((object.castShadow || object.receiveShadow && type === VSMShadowMap) && (!object.frustumCulled || _frustum.intersectsObject(object))) {
         object.modelViewMatrix.multiplyMatrices(shadowCamera.matrixWorldInverse, object.matrixWorld);
@@ -13726,22 +13765,22 @@ function WebGLShadowMap(_renderer, _objects, _capabilities) {
             const groupMaterial = material[group.materialIndex];
             if (groupMaterial && groupMaterial.visible) {
               const depthMaterial = getDepthMaterial(object, groupMaterial, light, type);
-              object.onBeforeShadow(_renderer, object, camera2, shadowCamera, geometry, depthMaterial, group);
+              object.onBeforeShadow(_renderer, object, camera3, shadowCamera, geometry, depthMaterial, group);
               _renderer.renderBufferDirect(shadowCamera, null, geometry, depthMaterial, object, group);
-              object.onAfterShadow(_renderer, object, camera2, shadowCamera, geometry, depthMaterial, group);
+              object.onAfterShadow(_renderer, object, camera3, shadowCamera, geometry, depthMaterial, group);
             }
           }
         } else if (material.visible) {
           const depthMaterial = getDepthMaterial(object, material, light, type);
-          object.onBeforeShadow(_renderer, object, camera2, shadowCamera, geometry, depthMaterial, null);
+          object.onBeforeShadow(_renderer, object, camera3, shadowCamera, geometry, depthMaterial, null);
           _renderer.renderBufferDirect(shadowCamera, null, geometry, depthMaterial, object, null);
-          object.onAfterShadow(_renderer, object, camera2, shadowCamera, geometry, depthMaterial, null);
+          object.onAfterShadow(_renderer, object, camera3, shadowCamera, geometry, depthMaterial, null);
         }
       }
     }
     const children = object.children;
     for (let i = 0, l = children.length; i < l; i++) {
-      renderObject(children[i], camera2, shadowCamera, light, type);
+      renderObject(children[i], camera3, shadowCamera, light, type);
     }
   }
   function onMaterialDispose(event) {
@@ -16293,7 +16332,7 @@ var WebXRManager = class extends EventDispatcher {
     }
     const cameraLPos = new Vector3();
     const cameraRPos = new Vector3();
-    function setProjectionFromUnion(camera2, cameraL2, cameraR2) {
+    function setProjectionFromUnion(camera3, cameraL2, cameraR2) {
       cameraLPos.setFromMatrixPosition(cameraL2.matrixWorld);
       cameraRPos.setFromMatrixPosition(cameraR2.matrixWorld);
       const ipd = cameraLPos.distanceTo(cameraRPos);
@@ -16309,33 +16348,33 @@ var WebXRManager = class extends EventDispatcher {
       const right = near * rightFov;
       const zOffset = ipd / (-leftFov + rightFov);
       const xOffset = zOffset * -leftFov;
-      cameraL2.matrixWorld.decompose(camera2.position, camera2.quaternion, camera2.scale);
-      camera2.translateX(xOffset);
-      camera2.translateZ(zOffset);
-      camera2.matrixWorld.compose(camera2.position, camera2.quaternion, camera2.scale);
-      camera2.matrixWorldInverse.copy(camera2.matrixWorld).invert();
+      cameraL2.matrixWorld.decompose(camera3.position, camera3.quaternion, camera3.scale);
+      camera3.translateX(xOffset);
+      camera3.translateZ(zOffset);
+      camera3.matrixWorld.compose(camera3.position, camera3.quaternion, camera3.scale);
+      camera3.matrixWorldInverse.copy(camera3.matrixWorld).invert();
       const near2 = near + zOffset;
       const far2 = far + zOffset;
       const left2 = left - xOffset;
       const right2 = right + (ipd - xOffset);
       const top2 = topFov * far / far2 * near2;
       const bottom2 = bottomFov * far / far2 * near2;
-      camera2.projectionMatrix.makePerspective(left2, right2, top2, bottom2, near2, far2);
-      camera2.projectionMatrixInverse.copy(camera2.projectionMatrix).invert();
+      camera3.projectionMatrix.makePerspective(left2, right2, top2, bottom2, near2, far2);
+      camera3.projectionMatrixInverse.copy(camera3.projectionMatrix).invert();
     }
-    function updateCamera(camera2, parent) {
+    function updateCamera(camera3, parent) {
       if (parent === null) {
-        camera2.matrixWorld.copy(camera2.matrix);
+        camera3.matrixWorld.copy(camera3.matrix);
       } else {
-        camera2.matrixWorld.multiplyMatrices(parent.matrixWorld, camera2.matrix);
+        camera3.matrixWorld.multiplyMatrices(parent.matrixWorld, camera3.matrix);
       }
-      camera2.matrixWorldInverse.copy(camera2.matrixWorld).invert();
+      camera3.matrixWorldInverse.copy(camera3.matrixWorld).invert();
     }
-    this.updateCamera = function(camera2) {
+    this.updateCamera = function(camera3) {
       if (session === null)
         return;
-      cameraXR.near = cameraR.near = cameraL.near = camera2.near;
-      cameraXR.far = cameraR.far = cameraL.far = camera2.far;
+      cameraXR.near = cameraR.near = cameraL.near = camera3.near;
+      cameraXR.far = cameraR.far = cameraL.far = camera3.far;
       if (_currentDepthNear !== cameraXR.near || _currentDepthFar !== cameraXR.far) {
         session.updateRenderState({
           depthNear: cameraXR.near,
@@ -16344,7 +16383,7 @@ var WebXRManager = class extends EventDispatcher {
         _currentDepthNear = cameraXR.near;
         _currentDepthFar = cameraXR.far;
       }
-      const parent = camera2.parent;
+      const parent = camera3.parent;
       const cameras2 = cameraXR.cameras;
       updateCamera(cameraXR, parent);
       for (let i = 0; i < cameras2.length; i++) {
@@ -16355,23 +16394,23 @@ var WebXRManager = class extends EventDispatcher {
       } else {
         cameraXR.projectionMatrix.copy(cameraL.projectionMatrix);
       }
-      updateUserCamera(camera2, cameraXR, parent);
+      updateUserCamera(camera3, cameraXR, parent);
     };
-    function updateUserCamera(camera2, cameraXR2, parent) {
+    function updateUserCamera(camera3, cameraXR2, parent) {
       if (parent === null) {
-        camera2.matrix.copy(cameraXR2.matrixWorld);
+        camera3.matrix.copy(cameraXR2.matrixWorld);
       } else {
-        camera2.matrix.copy(parent.matrixWorld);
-        camera2.matrix.invert();
-        camera2.matrix.multiply(cameraXR2.matrixWorld);
+        camera3.matrix.copy(parent.matrixWorld);
+        camera3.matrix.invert();
+        camera3.matrix.multiply(cameraXR2.matrixWorld);
       }
-      camera2.matrix.decompose(camera2.position, camera2.quaternion, camera2.scale);
-      camera2.updateMatrixWorld(true);
-      camera2.projectionMatrix.copy(cameraXR2.projectionMatrix);
-      camera2.projectionMatrixInverse.copy(cameraXR2.projectionMatrixInverse);
-      if (camera2.isPerspectiveCamera) {
-        camera2.fov = RAD2DEG * 2 * Math.atan(1 / camera2.projectionMatrix.elements[5]);
-        camera2.zoom = 1;
+      camera3.matrix.decompose(camera3.position, camera3.quaternion, camera3.scale);
+      camera3.updateMatrixWorld(true);
+      camera3.projectionMatrix.copy(cameraXR2.projectionMatrix);
+      camera3.projectionMatrixInverse.copy(cameraXR2.projectionMatrixInverse);
+      if (camera3.isPerspectiveCamera) {
+        camera3.fov = RAD2DEG * 2 * Math.atan(1 / camera3.projectionMatrix.elements[5]);
+        camera3.zoom = 1;
       }
     }
     this.getCamera = function() {
@@ -16424,24 +16463,24 @@ var WebXRManager = class extends EventDispatcher {
               renderer2.setRenderTarget(newRenderTarget);
             }
           }
-          let camera2 = cameras[i];
-          if (camera2 === void 0) {
-            camera2 = new PerspectiveCamera();
-            camera2.layers.enable(i);
-            camera2.viewport = new Vector4();
-            cameras[i] = camera2;
+          let camera3 = cameras[i];
+          if (camera3 === void 0) {
+            camera3 = new PerspectiveCamera();
+            camera3.layers.enable(i);
+            camera3.viewport = new Vector4();
+            cameras[i] = camera3;
           }
-          camera2.matrix.fromArray(view.transform.matrix);
-          camera2.matrix.decompose(camera2.position, camera2.quaternion, camera2.scale);
-          camera2.projectionMatrix.fromArray(view.projectionMatrix);
-          camera2.projectionMatrixInverse.copy(camera2.projectionMatrix).invert();
-          camera2.viewport.set(viewport.x, viewport.y, viewport.width, viewport.height);
+          camera3.matrix.fromArray(view.transform.matrix);
+          camera3.matrix.decompose(camera3.position, camera3.quaternion, camera3.scale);
+          camera3.projectionMatrix.fromArray(view.projectionMatrix);
+          camera3.projectionMatrixInverse.copy(camera3.projectionMatrix).invert();
+          camera3.viewport.set(viewport.x, viewport.y, viewport.width, viewport.height);
           if (i === 0) {
-            cameraXR.matrix.copy(camera2.matrix);
+            cameraXR.matrix.copy(camera3.matrix);
             cameraXR.matrix.decompose(cameraXR.position, cameraXR.quaternion, cameraXR.scale);
           }
           if (cameraXRNeedsUpdate === true) {
-            cameraXR.cameras.push(camera2);
+            cameraXR.cameras.push(camera3);
           }
         }
       }
@@ -17360,11 +17399,11 @@ var WebGLRenderer = class {
         }
       }
     }
-    this.renderBufferDirect = function(camera2, scene2, geometry, material, object, group) {
+    this.renderBufferDirect = function(camera3, scene2, geometry, material, object, group) {
       if (scene2 === null)
         scene2 = _emptyScene;
       const frontFaceCW = object.isMesh && object.matrixWorld.determinant() < 0;
-      const program = setProgram(camera2, scene2, geometry, material, object);
+      const program = setProgram(camera3, scene2, geometry, material, object);
       state2.setMaterial(material, frontFaceCW);
       let index = geometry.index;
       let rangeFactor = 1;
@@ -17449,14 +17488,14 @@ var WebGLRenderer = class {
         getProgram(material, scene2, object);
       }
     }
-    this.compile = function(scene2, camera2, targetScene = null) {
+    this.compile = function(scene2, camera3, targetScene = null) {
       if (targetScene === null)
         targetScene = scene2;
       currentRenderState = renderStates.get(targetScene);
       currentRenderState.init();
       renderStateStack.push(currentRenderState);
       targetScene.traverseVisible(function(object) {
-        if (object.isLight && object.layers.test(camera2.layers)) {
+        if (object.isLight && object.layers.test(camera3.layers)) {
           currentRenderState.pushLight(object);
           if (object.castShadow) {
             currentRenderState.pushShadow(object);
@@ -17465,7 +17504,7 @@ var WebGLRenderer = class {
       });
       if (scene2 !== targetScene) {
         scene2.traverseVisible(function(object) {
-          if (object.isLight && object.layers.test(camera2.layers)) {
+          if (object.isLight && object.layers.test(camera3.layers)) {
             currentRenderState.pushLight(object);
             if (object.castShadow) {
               currentRenderState.pushShadow(object);
@@ -17494,8 +17533,8 @@ var WebGLRenderer = class {
       currentRenderState = null;
       return materials2;
     };
-    this.compileAsync = function(scene2, camera2, targetScene = null) {
-      const materials2 = this.compile(scene2, camera2, targetScene);
+    this.compileAsync = function(scene2, camera3, targetScene = null) {
+      const materials2 = this.compile(scene2, camera3, targetScene);
       return new Promise((resolve) => {
         function checkMaterialsReady() {
           materials2.forEach(function(material) {
@@ -17540,8 +17579,8 @@ var WebGLRenderer = class {
     };
     xr.addEventListener("sessionstart", onXRSessionStart);
     xr.addEventListener("sessionend", onXRSessionEnd);
-    this.render = function(scene2, camera2) {
-      if (camera2 !== void 0 && camera2.isCamera !== true) {
+    this.render = function(scene2, camera3) {
+      if (camera3 !== void 0 && camera3.isCamera !== true) {
         console.error("THREE.WebGLRenderer.render: camera is not an instance of THREE.Camera.");
         return;
       }
@@ -17549,26 +17588,26 @@ var WebGLRenderer = class {
         return;
       if (scene2.matrixWorldAutoUpdate === true)
         scene2.updateMatrixWorld();
-      if (camera2.parent === null && camera2.matrixWorldAutoUpdate === true)
-        camera2.updateMatrixWorld();
+      if (camera3.parent === null && camera3.matrixWorldAutoUpdate === true)
+        camera3.updateMatrixWorld();
       if (xr.enabled === true && xr.isPresenting === true) {
         if (xr.cameraAutoUpdate === true)
-          xr.updateCamera(camera2);
-        camera2 = xr.getCamera();
+          xr.updateCamera(camera3);
+        camera3 = xr.getCamera();
       }
       if (scene2.isScene === true)
-        scene2.onBeforeRender(_this, scene2, camera2, _currentRenderTarget);
+        scene2.onBeforeRender(_this, scene2, camera3, _currentRenderTarget);
       currentRenderState = renderStates.get(scene2, renderStateStack.length);
       currentRenderState.init();
       renderStateStack.push(currentRenderState);
-      _projScreenMatrix2.multiplyMatrices(camera2.projectionMatrix, camera2.matrixWorldInverse);
+      _projScreenMatrix2.multiplyMatrices(camera3.projectionMatrix, camera3.matrixWorldInverse);
       _frustum.setFromProjectionMatrix(_projScreenMatrix2);
       _localClippingEnabled = this.localClippingEnabled;
       _clippingEnabled = clipping.init(this.clippingPlanes, _localClippingEnabled);
       currentRenderList = renderLists.get(scene2, renderListStack.length);
       currentRenderList.init();
       renderListStack.push(currentRenderList);
-      projectObject(scene2, camera2, 0, _this.sortObjects);
+      projectObject(scene2, camera3, 0, _this.sortObjects);
       currentRenderList.finish();
       if (_this.sortObjects === true) {
         currentRenderList.sort(_opaqueSort, _transparentSort);
@@ -17577,28 +17616,28 @@ var WebGLRenderer = class {
       if (_clippingEnabled === true)
         clipping.beginShadows();
       const shadowsArray = currentRenderState.state.shadowsArray;
-      shadowMap.render(shadowsArray, scene2, camera2);
+      shadowMap.render(shadowsArray, scene2, camera3);
       if (_clippingEnabled === true)
         clipping.endShadows();
       if (this.info.autoReset === true)
         this.info.reset();
       background.render(currentRenderList, scene2);
       currentRenderState.setupLights(_this._useLegacyLights);
-      if (camera2.isArrayCamera) {
-        const cameras = camera2.cameras;
+      if (camera3.isArrayCamera) {
+        const cameras = camera3.cameras;
         for (let i = 0, l = cameras.length; i < l; i++) {
           const camera22 = cameras[i];
           renderScene(currentRenderList, scene2, camera22, camera22.viewport);
         }
       } else {
-        renderScene(currentRenderList, scene2, camera2);
+        renderScene(currentRenderList, scene2, camera3);
       }
       if (_currentRenderTarget !== null) {
         textures.updateMultisampleRenderTarget(_currentRenderTarget);
         textures.updateRenderTargetMipmap(_currentRenderTarget);
       }
       if (scene2.isScene === true)
-        scene2.onAfterRender(_this, scene2, camera2);
+        scene2.onAfterRender(_this, scene2, camera3);
       bindingStates.resetDefaultState();
       _currentMaterialId = -1;
       _currentCamera = null;
@@ -17615,16 +17654,16 @@ var WebGLRenderer = class {
         currentRenderList = null;
       }
     };
-    function projectObject(object, camera2, groupOrder, sortObjects) {
+    function projectObject(object, camera3, groupOrder, sortObjects) {
       if (object.visible === false)
         return;
-      const visible = object.layers.test(camera2.layers);
+      const visible = object.layers.test(camera3.layers);
       if (visible) {
         if (object.isGroup) {
           groupOrder = object.renderOrder;
         } else if (object.isLOD) {
           if (object.autoUpdate === true)
-            object.update(camera2);
+            object.update(camera3);
         } else if (object.isLight) {
           currentRenderState.pushLight(object);
           if (object.castShadow) {
@@ -17674,32 +17713,32 @@ var WebGLRenderer = class {
       }
       const children = object.children;
       for (let i = 0, l = children.length; i < l; i++) {
-        projectObject(children[i], camera2, groupOrder, sortObjects);
+        projectObject(children[i], camera3, groupOrder, sortObjects);
       }
     }
-    function renderScene(currentRenderList2, scene2, camera2, viewport) {
+    function renderScene(currentRenderList2, scene2, camera3, viewport) {
       const opaqueObjects = currentRenderList2.opaque;
       const transmissiveObjects = currentRenderList2.transmissive;
       const transparentObjects = currentRenderList2.transparent;
-      currentRenderState.setupLightsView(camera2);
+      currentRenderState.setupLightsView(camera3);
       if (_clippingEnabled === true)
-        clipping.setGlobalState(_this.clippingPlanes, camera2);
+        clipping.setGlobalState(_this.clippingPlanes, camera3);
       if (transmissiveObjects.length > 0)
-        renderTransmissionPass(opaqueObjects, transmissiveObjects, scene2, camera2);
+        renderTransmissionPass(opaqueObjects, transmissiveObjects, scene2, camera3);
       if (viewport)
         state2.viewport(_currentViewport.copy(viewport));
       if (opaqueObjects.length > 0)
-        renderObjects(opaqueObjects, scene2, camera2);
+        renderObjects(opaqueObjects, scene2, camera3);
       if (transmissiveObjects.length > 0)
-        renderObjects(transmissiveObjects, scene2, camera2);
+        renderObjects(transmissiveObjects, scene2, camera3);
       if (transparentObjects.length > 0)
-        renderObjects(transparentObjects, scene2, camera2);
+        renderObjects(transparentObjects, scene2, camera3);
       state2.buffers.depth.setTest(true);
       state2.buffers.depth.setMask(true);
       state2.buffers.color.setMask(true);
       state2.setPolygonOffset(false);
     }
-    function renderTransmissionPass(opaqueObjects, transmissiveObjects, scene2, camera2) {
+    function renderTransmissionPass(opaqueObjects, transmissiveObjects, scene2, camera3) {
       const overrideMaterial = scene2.isScene === true ? scene2.overrideMaterial : null;
       if (overrideMaterial !== null) {
         return;
@@ -17728,7 +17767,7 @@ var WebGLRenderer = class {
       _this.clear();
       const currentToneMapping = _this.toneMapping;
       _this.toneMapping = NoToneMapping;
-      renderObjects(opaqueObjects, scene2, camera2);
+      renderObjects(opaqueObjects, scene2, camera3);
       textures.updateMultisampleRenderTarget(_transmissionRenderTarget);
       textures.updateRenderTargetMipmap(_transmissionRenderTarget);
       let renderTargetNeedsUpdate = false;
@@ -17738,11 +17777,11 @@ var WebGLRenderer = class {
         const geometry = renderItem.geometry;
         const material = renderItem.material;
         const group = renderItem.group;
-        if (material.side === DoubleSide && object.layers.test(camera2.layers)) {
+        if (material.side === DoubleSide && object.layers.test(camera3.layers)) {
           const currentSide = material.side;
           material.side = BackSide;
           material.needsUpdate = true;
-          renderObject(object, scene2, camera2, geometry, material, group);
+          renderObject(object, scene2, camera3, geometry, material, group);
           material.side = currentSide;
           material.needsUpdate = true;
           renderTargetNeedsUpdate = true;
@@ -17756,7 +17795,7 @@ var WebGLRenderer = class {
       _this.setClearColor(_currentClearColor, _currentClearAlpha);
       _this.toneMapping = currentToneMapping;
     }
-    function renderObjects(renderList, scene2, camera2) {
+    function renderObjects(renderList, scene2, camera3) {
       const overrideMaterial = scene2.isScene === true ? scene2.overrideMaterial : null;
       for (let i = 0, l = renderList.length; i < l; i++) {
         const renderItem = renderList[i];
@@ -17764,28 +17803,28 @@ var WebGLRenderer = class {
         const geometry = renderItem.geometry;
         const material = overrideMaterial === null ? renderItem.material : overrideMaterial;
         const group = renderItem.group;
-        if (object.layers.test(camera2.layers)) {
-          renderObject(object, scene2, camera2, geometry, material, group);
+        if (object.layers.test(camera3.layers)) {
+          renderObject(object, scene2, camera3, geometry, material, group);
         }
       }
     }
-    function renderObject(object, scene2, camera2, geometry, material, group) {
-      object.onBeforeRender(_this, scene2, camera2, geometry, material, group);
-      object.modelViewMatrix.multiplyMatrices(camera2.matrixWorldInverse, object.matrixWorld);
+    function renderObject(object, scene2, camera3, geometry, material, group) {
+      object.onBeforeRender(_this, scene2, camera3, geometry, material, group);
+      object.modelViewMatrix.multiplyMatrices(camera3.matrixWorldInverse, object.matrixWorld);
       object.normalMatrix.getNormalMatrix(object.modelViewMatrix);
-      material.onBeforeRender(_this, scene2, camera2, geometry, object, group);
+      material.onBeforeRender(_this, scene2, camera3, geometry, object, group);
       if (material.transparent === true && material.side === DoubleSide && material.forceSinglePass === false) {
         material.side = BackSide;
         material.needsUpdate = true;
-        _this.renderBufferDirect(camera2, scene2, geometry, material, object, group);
+        _this.renderBufferDirect(camera3, scene2, geometry, material, object, group);
         material.side = FrontSide;
         material.needsUpdate = true;
-        _this.renderBufferDirect(camera2, scene2, geometry, material, object, group);
+        _this.renderBufferDirect(camera3, scene2, geometry, material, object, group);
         material.side = DoubleSide;
       } else {
-        _this.renderBufferDirect(camera2, scene2, geometry, material, object, group);
+        _this.renderBufferDirect(camera3, scene2, geometry, material, object, group);
       }
-      object.onAfterRender(_this, scene2, camera2, geometry, material, group);
+      object.onAfterRender(_this, scene2, camera3, geometry, material, group);
     }
     function getProgram(material, scene2, object) {
       if (scene2.isScene !== true)
@@ -17875,7 +17914,7 @@ var WebGLRenderer = class {
       materialProperties.vertexTangents = parameters2.vertexTangents;
       materialProperties.toneMapping = parameters2.toneMapping;
     }
-    function setProgram(camera2, scene2, geometry, material, object) {
+    function setProgram(camera3, scene2, geometry, material, object) {
       if (scene2.isScene !== true)
         scene2 = _emptyScene;
       textures.resetTextureUnits();
@@ -17899,9 +17938,9 @@ var WebGLRenderer = class {
       const materialProperties = properties.get(material);
       const lights = currentRenderState.state.lights;
       if (_clippingEnabled === true) {
-        if (_localClippingEnabled === true || camera2 !== _currentCamera) {
-          const useCache = camera2 === _currentCamera && material.id === _currentMaterialId;
-          clipping.setState(material, camera2, useCache);
+        if (_localClippingEnabled === true || camera3 !== _currentCamera) {
+          const useCache = camera3 === _currentCamera && material.id === _currentMaterialId;
+          clipping.setState(material, camera3, useCache);
         }
       }
       let needsProgramChange = false;
@@ -17968,25 +18007,25 @@ var WebGLRenderer = class {
         _currentMaterialId = material.id;
         refreshMaterial = true;
       }
-      if (refreshProgram || _currentCamera !== camera2) {
-        p_uniforms.setValue(_gl, "projectionMatrix", camera2.projectionMatrix);
-        p_uniforms.setValue(_gl, "viewMatrix", camera2.matrixWorldInverse);
+      if (refreshProgram || _currentCamera !== camera3) {
+        p_uniforms.setValue(_gl, "projectionMatrix", camera3.projectionMatrix);
+        p_uniforms.setValue(_gl, "viewMatrix", camera3.matrixWorldInverse);
         const uCamPos = p_uniforms.map.cameraPosition;
         if (uCamPos !== void 0) {
-          uCamPos.setValue(_gl, _vector3.setFromMatrixPosition(camera2.matrixWorld));
+          uCamPos.setValue(_gl, _vector3.setFromMatrixPosition(camera3.matrixWorld));
         }
         if (capabilities.logarithmicDepthBuffer) {
           p_uniforms.setValue(
             _gl,
             "logDepthBufFC",
-            2 / (Math.log(camera2.far + 1) / Math.LN2)
+            2 / (Math.log(camera3.far + 1) / Math.LN2)
           );
         }
         if (material.isMeshPhongMaterial || material.isMeshToonMaterial || material.isMeshLambertMaterial || material.isMeshBasicMaterial || material.isMeshStandardMaterial || material.isShaderMaterial) {
-          p_uniforms.setValue(_gl, "isOrthographic", camera2.isOrthographicCamera === true);
+          p_uniforms.setValue(_gl, "isOrthographic", camera3.isOrthographicCamera === true);
         }
-        if (_currentCamera !== camera2) {
-          _currentCamera = camera2;
+        if (_currentCamera !== camera3) {
+          _currentCamera = camera3;
           refreshMaterial = true;
           refreshLights = true;
         }
@@ -18763,7 +18802,7 @@ var CatmullRomCurve3 = class extends Curve {
       p0 = tmp;
     }
     const p1 = points[intPoint % l];
-    const p2 = points[(intPoint + 1) % l];
+    const p22 = points[(intPoint + 1) % l];
     if (this.closed || intPoint + 2 < l) {
       p3 = points[(intPoint + 2) % l];
     } else {
@@ -18773,21 +18812,21 @@ var CatmullRomCurve3 = class extends Curve {
     if (this.curveType === "centripetal" || this.curveType === "chordal") {
       const pow = this.curveType === "chordal" ? 0.5 : 0.25;
       let dt0 = Math.pow(p0.distanceToSquared(p1), pow);
-      let dt1 = Math.pow(p1.distanceToSquared(p2), pow);
-      let dt2 = Math.pow(p2.distanceToSquared(p3), pow);
+      let dt1 = Math.pow(p1.distanceToSquared(p22), pow);
+      let dt2 = Math.pow(p22.distanceToSquared(p3), pow);
       if (dt1 < 1e-4)
         dt1 = 1;
       if (dt0 < 1e-4)
         dt0 = dt1;
       if (dt2 < 1e-4)
         dt2 = dt1;
-      px.initNonuniformCatmullRom(p0.x, p1.x, p2.x, p3.x, dt0, dt1, dt2);
-      py.initNonuniformCatmullRom(p0.y, p1.y, p2.y, p3.y, dt0, dt1, dt2);
-      pz.initNonuniformCatmullRom(p0.z, p1.z, p2.z, p3.z, dt0, dt1, dt2);
+      px.initNonuniformCatmullRom(p0.x, p1.x, p22.x, p3.x, dt0, dt1, dt2);
+      py.initNonuniformCatmullRom(p0.y, p1.y, p22.y, p3.y, dt0, dt1, dt2);
+      pz.initNonuniformCatmullRom(p0.z, p1.z, p22.z, p3.z, dt0, dt1, dt2);
     } else if (this.curveType === "catmullrom") {
-      px.initCatmullRom(p0.x, p1.x, p2.x, p3.x, this.tension);
-      py.initCatmullRom(p0.y, p1.y, p2.y, p3.y, this.tension);
-      pz.initCatmullRom(p0.z, p1.z, p2.z, p3.z, this.tension);
+      px.initCatmullRom(p0.x, p1.x, p22.x, p3.x, this.tension);
+      py.initCatmullRom(p0.y, p1.y, p22.y, p3.y, this.tension);
+      pz.initCatmullRom(p0.z, p1.z, p22.z, p3.z, this.tension);
     }
     point.set(
       px.calc(weight),
@@ -18833,12 +18872,12 @@ var CatmullRomCurve3 = class extends Curve {
     return this;
   }
 };
-function CatmullRom(t2, p0, p1, p2, p3) {
-  const v0 = (p2 - p0) * 0.5;
+function CatmullRom(t2, p0, p1, p22, p3) {
+  const v0 = (p22 - p0) * 0.5;
   const v1 = (p3 - p1) * 0.5;
   const t22 = t2 * t2;
   const t3 = t2 * t22;
-  return (2 * p1 - 2 * p2 + v0 + v1) * t3 + (-3 * p1 + 3 * p2 - 2 * v0 - v1) * t22 + v0 * t2 + p1;
+  return (2 * p1 - 2 * p22 + v0 + v1) * t3 + (-3 * p1 + 3 * p22 - 2 * v0 - v1) * t22 + v0 * t2 + p1;
 }
 function QuadraticBezierP0(t2, p) {
   const k = 1 - t2;
@@ -18850,8 +18889,8 @@ function QuadraticBezierP1(t2, p) {
 function QuadraticBezierP2(t2, p) {
   return t2 * t2 * p;
 }
-function QuadraticBezier(t2, p0, p1, p2) {
-  return QuadraticBezierP0(t2, p0) + QuadraticBezierP1(t2, p1) + QuadraticBezierP2(t2, p2);
+function QuadraticBezier(t2, p0, p1, p22) {
+  return QuadraticBezierP0(t2, p0) + QuadraticBezierP1(t2, p1) + QuadraticBezierP2(t2, p22);
 }
 function CubicBezierP0(t2, p) {
   const k = 1 - t2;
@@ -18867,8 +18906,8 @@ function CubicBezierP2(t2, p) {
 function CubicBezierP3(t2, p) {
   return t2 * t2 * t2 * p;
 }
-function CubicBezier(t2, p0, p1, p2, p3) {
-  return CubicBezierP0(t2, p0) + CubicBezierP1(t2, p1) + CubicBezierP2(t2, p2) + CubicBezierP3(t2, p3);
+function CubicBezier(t2, p0, p1, p22, p3) {
+  return CubicBezierP0(t2, p0) + CubicBezierP1(t2, p1) + CubicBezierP2(t2, p22) + CubicBezierP3(t2, p3);
 }
 var CubicBezierCurve = class extends Curve {
   constructor(v0 = new Vector2(), v1 = new Vector2(), v2 = new Vector2(), v3 = new Vector2()) {
@@ -19149,11 +19188,11 @@ var SplineCurve = class extends Curve {
     const weight = p - intPoint;
     const p0 = points[intPoint === 0 ? intPoint : intPoint - 1];
     const p1 = points[intPoint];
-    const p2 = points[intPoint > points.length - 2 ? points.length - 1 : intPoint + 1];
+    const p22 = points[intPoint > points.length - 2 ? points.length - 1 : intPoint + 1];
     const p3 = points[intPoint > points.length - 3 ? points.length - 1 : intPoint + 2];
     point.set(
-      CatmullRom(weight, p0.x, p1.x, p2.x, p3.x),
-      CatmullRom(weight, p0.y, p1.y, p2.y, p3.y)
+      CatmullRom(weight, p0.x, p1.x, p22.x, p3.x),
+      CatmullRom(weight, p0.y, p1.y, p22.y, p3.y)
     );
     return point;
   }
@@ -20476,23 +20515,23 @@ function isValidDiagonal(a, b) {
 function area(p, q, r) {
   return (q.y - p.y) * (r.x - q.x) - (q.x - p.x) * (r.y - q.y);
 }
-function equals(p1, p2) {
-  return p1.x === p2.x && p1.y === p2.y;
+function equals(p1, p22) {
+  return p1.x === p22.x && p1.y === p22.y;
 }
-function intersects(p1, q1, p2, q2) {
-  const o1 = sign(area(p1, q1, p2));
+function intersects(p1, q1, p22, q2) {
+  const o1 = sign(area(p1, q1, p22));
   const o2 = sign(area(p1, q1, q2));
-  const o3 = sign(area(p2, q2, p1));
-  const o4 = sign(area(p2, q2, q1));
+  const o3 = sign(area(p22, q2, p1));
+  const o4 = sign(area(p22, q2, q1));
   if (o1 !== o2 && o3 !== o4)
     return true;
-  if (o1 === 0 && onSegment(p1, p2, q1))
+  if (o1 === 0 && onSegment(p1, p22, q1))
     return true;
   if (o2 === 0 && onSegment(p1, q2, q1))
     return true;
-  if (o3 === 0 && onSegment(p2, p1, q2))
+  if (o3 === 0 && onSegment(p22, p1, q2))
     return true;
-  if (o4 === 0 && onSegment(p2, q1, q2))
+  if (o4 === 0 && onSegment(p22, q1, q2))
     return true;
   return false;
 }
@@ -22198,8 +22237,8 @@ var _projScreenMatrix$1 = /* @__PURE__ */ new Matrix4();
 var _lightPositionWorld$1 = /* @__PURE__ */ new Vector3();
 var _lookTarget$1 = /* @__PURE__ */ new Vector3();
 var LightShadow = class {
-  constructor(camera2) {
-    this.camera = camera2;
+  constructor(camera3) {
+    this.camera = camera3;
     this.bias = 0;
     this.normalBias = 0;
     this.radius = 1;
@@ -22345,22 +22384,22 @@ var PointLightShadow = class extends LightShadow {
     ];
   }
   updateMatrices(light, viewportIndex = 0) {
-    const camera2 = this.camera;
+    const camera3 = this.camera;
     const shadowMatrix = this.matrix;
-    const far = light.distance || camera2.far;
-    if (far !== camera2.far) {
-      camera2.far = far;
-      camera2.updateProjectionMatrix();
+    const far = light.distance || camera3.far;
+    if (far !== camera3.far) {
+      camera3.far = far;
+      camera3.updateProjectionMatrix();
     }
     _lightPositionWorld.setFromMatrixPosition(light.matrixWorld);
-    camera2.position.copy(_lightPositionWorld);
-    _lookTarget.copy(camera2.position);
+    camera3.position.copy(_lightPositionWorld);
+    _lookTarget.copy(camera3.position);
     _lookTarget.add(this._cubeDirections[viewportIndex]);
-    camera2.up.copy(this._cubeUps[viewportIndex]);
-    camera2.lookAt(_lookTarget);
-    camera2.updateMatrixWorld();
+    camera3.up.copy(this._cubeUps[viewportIndex]);
+    camera3.lookAt(_lookTarget);
+    camera3.updateMatrixWorld();
     shadowMatrix.makeTranslation(-_lightPositionWorld.x, -_lightPositionWorld.y, -_lightPositionWorld.z);
-    _projScreenMatrix.multiplyMatrices(camera2.projectionMatrix, camera2.matrixWorldInverse);
+    _projScreenMatrix.multiplyMatrices(camera3.projectionMatrix, camera3.matrixWorldInverse);
     this._frustum.setFromProjectionMatrix(_projScreenMatrix);
   }
 };
@@ -23076,10 +23115,10 @@ var ShaderPass = class extends Pass {
 
 // node_modules/three/examples/jsm/postprocessing/MaskPass.js
 var MaskPass = class extends Pass {
-  constructor(scene2, camera2) {
+  constructor(scene2, camera3) {
     super();
     this.scene = scene2;
-    this.camera = camera2;
+    this.camera = camera3;
     this.clear = true;
     this.needsSwap = false;
     this.inverse = false;
@@ -23258,10 +23297,10 @@ var EffectComposer = class {
 
 // node_modules/three/examples/jsm/postprocessing/RenderPass.js
 var RenderPass = class extends Pass {
-  constructor(scene2, camera2, overrideMaterial = null, clearColor = null, clearAlpha = null) {
+  constructor(scene2, camera3, overrideMaterial = null, clearColor = null, clearAlpha = null) {
     super();
     this.scene = scene2;
-    this.camera = camera2;
+    this.camera = camera3;
     this.overrideMaterial = overrideMaterial;
     this.clearColor = clearColor;
     this.clearAlpha = clearAlpha;
@@ -23622,10 +23661,10 @@ UnrealBloomPass.BlurDirectionY = new Vector2(0, 1);
 
 // node_modules/three/examples/jsm/postprocessing/OutlinePass.js
 var OutlinePass = class _OutlinePass extends Pass {
-  constructor(resolution, scene2, camera2, selectedObjects) {
+  constructor(resolution, scene2, camera3, selectedObjects) {
     super();
     this.renderScene = scene2;
-    this.renderCamera = camera2;
+    this.renderCamera = camera3;
     this.selectedObjects = selectedObjects !== void 0 ? selectedObjects : [];
     this.visibleEdgeColor = new Color(1, 1, 1);
     this.hiddenEdgeColor = new Color(0.1, 0.04, 0.02);
@@ -23695,8 +23734,8 @@ var OutlinePass = class _OutlinePass extends Pass {
     this.tempPulseColor1 = new Color();
     this.tempPulseColor2 = new Color();
     this.textureMatrix = new Matrix4();
-    function replaceDepthToViewZ(string, camera3) {
-      const type = camera3.isPerspectiveCamera ? "perspective" : "orthographic";
+    function replaceDepthToViewZ(string, camera4) {
+      const type = camera4.isPerspectiveCamera ? "perspective" : "orthographic";
       return string.replace(/DEPTH_TO_VIEW_Z/g, type + "DepthToViewZ");
     }
   }
@@ -29414,6 +29453,11 @@ function spillCoins(x, z, n) {
 var NRIV = 5;
 var player;
 var rivals = [];
+var coop = false;
+var p2 = null;
+var camera2 = new PerspectiveCamera(64, 1, 0.1, 900);
+var KEYS1 = { up: "ArrowUp", down: "ArrowDown", left: "ArrowLeft", right: "ArrowRight" };
+var KEYS2 = { up: "KeyW", down: "KeyS", left: "KeyA", right: "KeyD" };
 function makeKart(model, colorHex) {
   const g = MODELS[model].build(colorHex);
   addHeroPolish(g, colorHex);
@@ -29461,6 +29505,10 @@ function spawnRacers() {
     scene.remove(player.mesh);
   rivals.forEach((r) => scene.remove(r.mesh));
   rivals = [];
+  if (p2) {
+    scene.remove(p2.mesh);
+    p2 = null;
+  }
   player = {
     mesh: makeKart(selModel, playerColorHex()),
     h: 0,
@@ -29481,9 +29529,48 @@ function spawnRacers() {
     u: 0,
     score: 0,
     bumpCd: 0,
-    lives: DIFFS[diff].lives || null,
-    name: "\u{1F9F9} " + (selNick || "\u0422\u042B")
+    lives: coop ? null : DIFFS[diff].lives || null,
+    name: "\u{1F9F9} " + (selNick || "\u0422\u042B"),
+    main: true,
+    K: KEYS1,
+    model: selModel
   };
+  if (coop) {
+    const m2 = (selModel + 1) % MODELS.length;
+    let c2 = (selColor + 3) % COLORS.length;
+    if (!goldSelected && c2 === selColor)
+      c2 = (c2 + 1) % COLORS.length;
+    p2 = {
+      mesh: makeKart(m2, COLORS[c2].h),
+      h: 0,
+      speed: 0,
+      x: 0,
+      z: 0,
+      coins: 0,
+      lap: 0,
+      prevU: 0,
+      air: 0,
+      skid: 0,
+      poop: 0,
+      power: 0,
+      magnet: 0,
+      hitCd: 0,
+      freeze: 0,
+      dist: 0,
+      u: 0,
+      score: 0,
+      bumpCd: 0,
+      lives: null,
+      name: "\u{1F7E1} 2-\u0439 \u0438\u0433\u0440\u043E\u043A",
+      main: false,
+      K: KEYS2,
+      model: m2
+    };
+    placeGrid();
+    if (outlinePass)
+      outlinePass.selectedObjects = [player.mesh, p2.mesh];
+    return;
+  }
   const rivPool = NICKPOOL.filter((p) => p.n !== selNick).sort(() => Math.random() - 0.5);
   const used = /* @__PURE__ */ new Set([selColor]);
   for (let k = 0; k < NRIV; k++) {
@@ -29505,6 +29592,30 @@ function spawnRacers() {
 function placeGrid() {
   const s = sideAt(0), t2 = tans[0], a = Math.atan2(t2.x, t2.z);
   const grid = [[-3.5, -5], [3.5, -5], [-3.5, -11], [3.5, -11], [-3.5, -17], [3.5, -17]];
+  const \u0441\u0431\u0440\u043E\u0441 = (o, pz2) => {
+    o.x = pz2.x;
+    o.z = pz2.z;
+    o.h = a;
+    o.mesh.position.set(pz2.x, 0, pz2.z);
+    o.mesh.rotation.y = a + Math.PI;
+    o.u = nearestIndex(pz2.x, pz2.z) / M;
+    o.prevU = o.u;
+    o.lap = 0;
+    o.coins = 0;
+    o.dist = 0;
+    o.speed = 0;
+    o.skid = 0;
+    o.poop = 0;
+    o.power = 0;
+    o.magnet = 0;
+    o.freeze = 0;
+    o.air = 0;
+    o.score = 0;
+  };
+  if (coop && p2) {
+    [player, p2].forEach((o, k) => \u0441\u0431\u0440\u043E\u0441(o, pts[0].clone().addScaledVector(t2, grid[k][1]).addScaledVector(s, grid[k][0])));
+    return;
+  }
   [player, ...rivals].forEach((o, k) => {
     const p = pts[0].clone().addScaledVector(t2, grid[k][1]).addScaledVector(s, grid[k][0]);
     if (o === player) {
@@ -29552,6 +29663,13 @@ var aura = new Mesh(new TorusGeometry(1.7, 0.2, 12, 32), new MeshBasicMaterial({
 aura.rotation.x = Math.PI / 2;
 aura.visible = false;
 scene.add(aura);
+var p2Light = new PointLight(16777215, 0, 34, 2);
+p2Light.visible = false;
+scene.add(p2Light);
+var p2Aura = new Mesh(new TorusGeometry(1.7, 0.2, 12, 32), new MeshBasicMaterial({ color: 16777215, transparent: true, opacity: 0.6, side: DoubleSide }));
+p2Aura.rotation.x = Math.PI / 2;
+p2Aura.visible = false;
+scene.add(p2Aura);
 var shadowTex = makeTex(64, 64, (g, w, h) => {
   const gr = g.createRadialGradient(32, 32, 3, 32, 32, 30);
   gr.addColorStop(0, "rgba(0,0,0,0.5)");
@@ -29670,6 +29788,10 @@ function updateShine(dt) {
 }
 function hideExtras() {
   shadows.forEach((s) => s.visible = false);
+  if (typeof p2Light !== "undefined") {
+    p2Light.visible = false;
+    p2Aura.visible = false;
+  }
   trail.forEach((o) => {
     o.life = 0;
     o.mesh.visible = false;
@@ -29987,6 +30109,8 @@ addEventListener("keydown", (e) => {
   if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key))
     e.preventDefault();
   keys[e.key] = true;
+  if (e.code)
+    keys[e.code] = true;
   if ((e.key === "r" || e.key === "R") && state !== "menu")
     startRace();
   if (e.key === " " && state === "finish")
@@ -29998,6 +30122,8 @@ addEventListener("keydown", (e) => {
 });
 addEventListener("keyup", (e) => {
   keys[e.key] = false;
+  if (e.code)
+    keys[e.code] = false;
 });
 muteEl.onclick = () => {
   const m = Sound.toggleMute();
@@ -30122,7 +30248,14 @@ function buildNicks() {
   });
 }
 buildNicks();
-el("play").onclick = startRace;
+el("play").onclick = () => {
+  coop = false;
+  startRace();
+};
+el("play2").onclick = () => {
+  coop = true;
+  startRace();
+};
 el("again").onclick = startRace;
 el("toMenu").onclick = showMenu;
 el("achBtn").onclick = openAchPanel;
@@ -30166,6 +30299,13 @@ function showMenu() {
   comboT = 0;
   comboEl.classList.remove("show");
   el("bonusUI").classList.add("hidden");
+  coop = false;
+  document.body.classList.remove("coop");
+  if (p2) {
+    scene.remove(p2.mesh);
+    p2 = null;
+  }
+  resize();
   if (player) {
     scene.remove(player.mesh);
     player = null;
@@ -30188,6 +30328,7 @@ function startRace() {
   el("menu").classList.add("hidden");
   el("finish").classList.add("hidden");
   el("hud").classList.remove("hidden");
+  document.body.classList.toggle("coop", coop);
   setDrivingControls(true);
   if (showcase) {
     scene.remove(showcase);
@@ -30312,7 +30453,10 @@ function animate() {
       state = "race";
       countEl.classList.add("hidden");
     }
-    composer.render();
+    if (coop)
+      renderCoop();
+    else
+      composer.render();
     return;
   }
   if (state === "race") {
@@ -30320,11 +30464,18 @@ function animate() {
     updateRivals(dt);
     kartCollisions(dt);
     updateItems(dt);
+    if (coop)
+      updateItemsP2(dt);
     updateTrail(dt);
     updatePoopTrail(dt);
     updateShine(dt);
-    rankHud();
+    if (coop)
+      coopHud();
+    else
+      rankHud();
     chaseCam(dt, false);
+    renderFrame();
+    return;
   } else if (state === "bonus") {
     bonusT -= dt;
     updatePlayer(dt);
@@ -30345,14 +30496,26 @@ function animate() {
     camera.position.set(player.mesh.position.x + Math.sin(t) * 7, 4, player.mesh.position.z + 7);
     camera.lookAt(player.mesh.position.x, 0.8, player.mesh.position.z);
   }
-  composer.render();
+  renderFrame();
+}
+function renderFrame() {
+  if (coop && (state === "race" || state === "count"))
+    renderCoop();
+  else
+    composer.render();
 }
 function updatePlayer(dt) {
-  const P = player;
+  updateKart(player, dt);
+  if (coop && p2)
+    updateKart(p2, dt);
+}
+function updateKart(P, dt) {
+  const K = P.K || KEYS1;
+  const PL = P.main ? powerLight : p2Light, AU = P.main ? aura : p2Aura;
   let target = 22;
-  if (keys["ArrowUp"])
+  if (keys[K.up])
     target = 38;
-  else if (keys["ArrowDown"])
+  else if (keys[K.down])
     target = 9;
   if (P.skid > 0) {
     P.skid -= dt;
@@ -30369,9 +30532,9 @@ function updatePlayer(dt) {
   P.speed += (target - P.speed) * Math.min(1, dt * 2.5);
   if (P.skid <= 0 && P.freeze <= 0) {
     let turn = 0;
-    if (keys["ArrowLeft"])
+    if (keys[K.left])
       turn += 1;
-    if (keys["ArrowRight"])
+    if (keys[K.right])
       turn -= 1;
     P.h += turn * 2.3 * dt * Math.min(1, P.speed / 6 + 0.2);
   } else if (P.skid > 0) {
@@ -30419,22 +30582,22 @@ function updatePlayer(dt) {
   const ai = nearestIndex(P.x + F.x * 4, P.z + F.z * 4);
   const pitch = Math.atan2(elev(ai / M) - gY, 4);
   P.mesh.rotation.x = -pitch;
-  P.mesh.rotation.z += ((keys["ArrowLeft"] ? 0.18 : keys["ArrowRight"] ? -0.18 : 0) - P.mesh.rotation.z) * Math.min(1, dt * 8);
+  P.mesh.rotation.z += ((keys[K.left] ? 0.18 : keys[K.right] ? -0.18 : 0) - P.mesh.rotation.z) * Math.min(1, dt * 8);
   P.mesh.userData.spin?.forEach((m) => m.rotation.x += P.speed * dt * 2);
   if (P.power > 0) {
     P.power -= dt;
     const c = new Color().setHSL(t * 0.6 % 1, 1, 0.55);
-    powerLight.visible = true;
-    powerLight.color.copy(c);
-    powerLight.intensity = 2.4;
-    powerLight.position.set(P.x, gY + 1.3, P.z);
-    aura.visible = true;
-    aura.material.color.copy(c);
-    aura.position.set(P.x, gY + 0.5, P.z);
-    aura.scale.setScalar(1 + Math.sin(t * 10) * 0.07);
+    PL.visible = true;
+    PL.color.copy(c);
+    PL.intensity = 2.4;
+    PL.position.set(P.x, gY + 1.3, P.z);
+    AU.visible = true;
+    AU.material.color.copy(c);
+    AU.position.set(P.x, gY + 0.5, P.z);
+    AU.scale.setScalar(1 + Math.sin(t * 10) * 0.07);
   } else {
-    powerLight.visible = false;
-    aura.visible = false;
+    PL.visible = false;
+    AU.visible = false;
   }
   P.u = ni / M;
   if (state !== "bonus" && P.prevU > 0.75 && P.u < 0.25) {
@@ -30445,19 +30608,26 @@ function updatePlayer(dt) {
       P.lap++;
       P.dist = 0;
       if (P.lap > 3) {
-        finishRace();
+        if (coop)
+          coopFinish(P);
+        else
+          finishRace();
       }
     }
   }
   P.prevU = P.u;
   P.score = P.lap + P.u;
   const dot = F.x * tans[ni].x + F.z * tans[ni].z;
-  warnEl.style.display = dot < -0.3 && P.speed > 4 ? "block" : "none";
-  sun.position.set(P.x + 16, 32, P.z + 12);
-  sun.target.position.set(P.x, 0, P.z);
-  if (shadows[0]) {
-    shadows[0].visible = true;
-    shadows[0].position.set(P.x, gY + 0.06, P.z);
+  if (P.main && !coop)
+    warnEl.style.display = dot < -0.3 && P.speed > 4 ? "block" : "none";
+  if (P.main) {
+    sun.position.set(P.x + 16, 32, P.z + 12);
+    sun.target.position.set(P.x, 0, P.z);
+  }
+  const sh = shadows[P.main ? 0 : 1];
+  if (sh) {
+    sh.visible = true;
+    sh.position.set(P.x, gY + 0.06, P.z);
   }
   trailT += dt;
   if (P.speed > 12 && trailT > 0.05) {
@@ -30472,11 +30642,12 @@ function updatePlayer(dt) {
     }
   }
   shineT += dt;
-  if (MODELS[selModel].wet && P.speed > 5 && shineT > 0.045) {
+  if (MODELS[P.model != null ? P.model : selModel].wet && P.speed > 5 && shineT > 0.045) {
     shineT = 0;
     emitShine(P.x - F.x * 0.5, P.z - F.z * 0.5, P.h, gY);
   }
-  speedfxEl.style.opacity = Math.max(0, Math.min(0.9, (P.speed - 27) / 14));
+  if (P.main && !coop)
+    speedfxEl.style.opacity = Math.max(0, Math.min(0.9, (P.speed - 27) / 14));
 }
 function updateRivals(dt) {
   const P = player;
@@ -30616,6 +30787,21 @@ function updateRivals(dt) {
 }
 function kartCollisions(dt) {
   const P = player;
+  if (coop && p2) {
+    const dx = p2.x - P.x, dz = p2.z - P.z, d = Math.hypot(dx, dz);
+    if (d < 2.4 && P.bumpCd <= 0 && p2.bumpCd <= 0) {
+      P.bumpCd = p2.bumpCd = 0.3;
+      const nx = dx / (d || 1), nz = dz / (d || 1);
+      P.x -= nx * 1.1;
+      P.z -= nz * 1.1;
+      p2.x += nx * 1.1;
+      p2.z += nz * 1.1;
+      P.speed *= 0.82;
+      p2.speed *= 0.82;
+      Sound.bump();
+    }
+    return;
+  }
   rivals.forEach((r) => {
     if (r.dead)
       return;
@@ -30831,6 +31017,118 @@ function updateItems(dt) {
     }
   }
 }
+function teleTo(P, idx) {
+  idx = Math.max(0, Math.min(M, idx | 0));
+  P.x = pts[idx].x;
+  P.z = pts[idx].z;
+  P.h = Math.atan2(tans[idx].x, tans[idx].z);
+  P.prevU = idx / M;
+  P.u = P.prevU;
+  P.hitCd = 0.5;
+  P.teleCd = 1.5;
+  P.speed = Math.max(P.speed, 8);
+}
+function updateItemsP2(dt) {
+  const P = p2;
+  if (!P)
+    return;
+  if (P.teleCd > 0)
+    P.teleCd -= dt;
+  for (const it of items) {
+    if (it.cd2 > 0)
+      it.cd2 -= dt;
+    if (it.r <= 0)
+      continue;
+    if (it.type === "coin" && P.magnet > 0) {
+      const dx2 = P.x - it.mesh.position.x, dz2 = P.z - it.mesh.position.z, dd = Math.hypot(dx2, dz2) || 1;
+      if (dd < 26) {
+        const step = Math.min(dd, (8 + (1 - dd / 26) * 34) * dt);
+        it.mesh.position.x += dx2 / dd * step;
+        it.mesh.position.z += dz2 / dd * step;
+      }
+    }
+    const dx = it.mesh.position.x - P.x, dz = it.mesh.position.z - P.z, d = Math.hypot(dx, dz);
+    if (d >= it.r + 0.9)
+      continue;
+    if (it.type === "coin") {
+      scene.remove(it.mesh);
+      it.r = 0;
+      P.coins++;
+      Sound.coin();
+    } else if (it.type === "battery") {
+      scene.remove(it.mesh);
+      it.r = 0;
+      P.power = 8;
+      Sound.boost();
+    } else if (it.type === "magnet") {
+      scene.remove(it.mesh);
+      it.r = 0;
+      P.magnet = 30;
+      Sound.boost();
+    } else if (it.type === "portal") {
+      if (P.teleCd <= 0)
+        teleTo(P, Math.floor(Math.random() * M));
+    } else if (it.type === "portal_start") {
+      if (P.teleCd <= 0)
+        teleTo(P, 0);
+    } else if (it.type === "portal_shortcut") {
+      if (P.teleCd <= 0)
+        teleTo(P, it.target);
+    } else if (it.type === "portal_bonus") {
+    } else if (P.air > 0) {
+    } else if (it.type === "boost" && it.cd2 <= 0) {
+      P.speed = Math.min(46, P.speed + 16);
+      it.cd2 = 0.6;
+      Sound.boost();
+    } else if (it.type === "jump") {
+      if (P.air <= 0) {
+        P.air = 0.9;
+        P.speed = Math.min(42, P.speed + 8);
+        Sound.jump();
+      }
+    } else if (it.type === "oil" && it.cd2 <= 0) {
+      P.skid = 0.7;
+      it.cd2 = 2.5;
+      Sound.oil();
+    } else if (it.type === "poop" && it.cd2 <= 0) {
+      P.poop = 1.4;
+      P.speed *= 0.6;
+      it.cd2 = 2.5;
+      Sound.splat();
+    } else if (it.type === "hole") {
+      if (P.power <= 0) {
+        const ni = nearestIndex(P.x, P.z);
+        P.x = pts[ni].x;
+        P.z = pts[ni].z;
+        P.h = Math.atan2(tans[ni].x, tans[ni].z);
+        P.speed = 4;
+        P.freeze = 0.5;
+        P.coins = Math.max(0, P.coins - 5);
+        Sound.crash();
+      }
+    } else if (it.type === "obstacle" && P.hitCd <= 0) {
+      if (P.power > 0) {
+        scene.remove(it.mesh);
+        it.r = 0;
+        P.hitCd = 0.15;
+        Sound.boost();
+      } else {
+        P.coins = Math.max(0, P.coins - 5);
+        P.speed *= 0.5;
+        P.hitCd = 1;
+        const F = new Vector3(Math.sin(P.h), 0, Math.cos(P.h));
+        P.x -= F.x * 1.2;
+        P.z -= F.z * 1.2;
+        if (it.sound === "meow")
+          Sound.meow();
+        else if (it.sound === "squeak")
+          Sound.squeak();
+        else
+          Sound.crash();
+      }
+    }
+  }
+}
 function rankHud() {
   const all = [{ name: player.name, s: player.score, me: true, lives: player.lives }, ...rivals.map((r) => ({ name: r.name, s: r.dead ? -999 : r.score, lives: r.lives, dead: r.dead }))].sort((a, b) => b.s - a.s);
   el("board").innerHTML = all.map((a, i) => `<div class="row ${a.me ? "me" : ""}"><span class="pl">${i + 1}.</span><span>${a.name}${a.dead ? " \u{1F480}" : a.lives != null ? " " + "\u2764".repeat(Math.max(0, a.lives)) : ""}</span></div>`).join("");
@@ -30849,18 +31147,120 @@ function rankHud() {
   }
 }
 function chaseCam(dt, instant) {
-  const P = player;
+  camFor(player, camera, dt, instant);
+  if (coop && p2)
+    camFor(p2, camera2, dt, instant);
+}
+function camFor(P, cam, dt, instant) {
   const F = new Vector3(Math.sin(P.h), 0, Math.cos(P.h));
   const py2 = P.mesh.position.y;
   const desired = new Vector3(P.x - F.x * 8.5, py2 + 4.1, P.z - F.z * 8.5);
   if (instant)
-    camera.position.copy(desired);
+    cam.position.copy(desired);
   else
-    camera.position.lerp(desired, Math.min(1, dt * 5));
-  camera.fov = 64 + (P.speed - 22) * 0.35;
-  camera.updateProjectionMatrix();
-  camera.lookAt(P.x + F.x * 8, py2 + 1, P.z + F.z * 8);
+    cam.position.lerp(desired, Math.min(1, dt * 5));
+  cam.fov = 64 + (P.speed - 22) * 0.35;
+  cam.updateProjectionMatrix();
+  cam.lookAt(P.x + F.x * 8, py2 + 1, P.z + F.z * 8);
 }
+var _splitSize = new Vector2();
+function renderCoop() {
+  renderer.getSize(_splitSize);
+  const w = Math.floor(_splitSize.x), h = Math.floor(_splitSize.y), hh = Math.floor(h / 2);
+  renderer.setScissorTest(true);
+  renderer.setViewport(0, hh, w, h - hh);
+  renderer.setScissor(0, hh, w, h - hh);
+  camera.aspect = w / (h - hh);
+  camera.updateProjectionMatrix();
+  renderer.render(scene, camera);
+  renderer.setViewport(0, 0, w, hh);
+  renderer.setScissor(0, 0, w, hh);
+  camera2.aspect = w / hh;
+  camera2.updateProjectionMatrix();
+  renderer.render(scene, camera2);
+  renderer.setScissorTest(false);
+  renderer.setViewport(0, 0, w, h);
+}
+function coopHud() {
+  el("lap1").textContent = Math.min(Math.max(player.lap, 1), 3);
+  el("coin1").textContent = player.coins;
+  if (p2) {
+    el("lap2").textContent = Math.min(Math.max(p2.lap, 1), 3);
+    el("coin2").textContent = p2.coins;
+  }
+}
+function coopFinish(win) {
+  state = "finish";
+  setDrivingControls(false);
+  document.body.classList.remove("coop");
+  const \u043F\u0435\u0440\u0432\u044B\u0439 = win === player;
+  el("finishTitle").textContent = \u043F\u0435\u0440\u0432\u044B\u0439 ? "\u{1F7E2} \u041F\u041E\u0411\u0415\u0414\u0418\u041B 1-\u0419 \u0418\u0413\u0420\u041E\u041A!" : "\u{1F7E1} \u041F\u041E\u0411\u0415\u0414\u0418\u041B 2-\u0419 \u0418\u0413\u0420\u041E\u041A!";
+  el("finishPlace").textContent = \u043F\u0435\u0440\u0432\u044B\u0439 ? "\u{1F3C6} \u041F\u0435\u0440\u0432\u044B\u0439 \u0438\u0433\u0440\u043E\u043A" : "\u{1F3C6} \u0412\u0442\u043E\u0440\u043E\u0439 \u0438\u0433\u0440\u043E\u043A";
+  el("boardEnd").innerHTML = `<tr class="${\u043F\u0435\u0440\u0432\u044B\u0439 ? "me" : ""}"><td>1</td><td>${\u043F\u0435\u0440\u0432\u044B\u0439 ? "\u{1F7E2} 1-\u0439 \u0438\u0433\u0440\u043E\u043A" : "\u{1F7E1} 2-\u0439 \u0438\u0433\u0440\u043E\u043A"}</td></tr><tr class="${\u043F\u0435\u0440\u0432\u044B\u0439 ? "" : "me"}"><td>2</td><td>${\u043F\u0435\u0440\u0432\u044B\u0439 ? "\u{1F7E1} 2-\u0439 \u0438\u0433\u0440\u043E\u043A" : "\u{1F7E2} 1-\u0439 \u0438\u0433\u0440\u043E\u043A"}</td></tr>`;
+  el("finishMsg").innerHTML = `\u{1F7E2} 1-\u0439 \u0441\u043E\u0431\u0440\u0430\u043B <b>${player.coins}</b> \u{1FA99} \xB7 \u{1F7E1} 2-\u0439 \u0441\u043E\u0431\u0440\u0430\u043B <b>${p2 ? p2.coins : 0}</b> \u{1FA99}`;
+  el("finish").classList.remove("hidden");
+  resize();
+  megaConfetti(14);
+  wowBurst(\u043F\u0435\u0440\u0432\u044B\u0439 ? "1-\u0419 \u0418\u0413\u0420\u041E\u041A!" : "2-\u0419 \u0418\u0413\u0420\u041E\u041A!", "\u041F\u043E\u0431\u0435\u0434\u0430!");
+}
+window.__dbg = {
+  get state() {
+    return state;
+  },
+  get coop() {
+    return coop;
+  },
+  get rivals() {
+    return rivals.length;
+  },
+  kart(w) {
+    const P = w === 2 ? p2 : player;
+    return P ? {
+      x: +P.x.toFixed(1),
+      z: +P.z.toFixed(1),
+      sp: +P.speed.toFixed(1),
+      lap: P.lap,
+      coins: P.coins,
+      u: +P.u.toFixed(3)
+    } : null;
+  },
+  startCoop() {
+    coop = true;
+    startRace();
+    return coop;
+  },
+  startSolo() {
+    coop = false;
+    startRace();
+    return coop;
+  },
+  key(k, v) {
+    keys[k] = !!v;
+    return !!keys[k];
+  },
+  skipCount() {
+    countT = 9;
+    return state;
+  },
+  setLap(w, n) {
+    const P = w === 2 ? p2 : player;
+    if (!P)
+      return null;
+    P.lap = n;
+    return P.lap;
+  },
+  finishAs(w) {
+    coopFinish(w === 2 ? p2 : player);
+    return el("finishTitle").textContent;
+  },
+  get split() {
+    return document.body.classList.contains("coop");
+  },
+  get padsShown() {
+    const e = document.querySelector(".cpad.p2");
+    return !!e && getComputedStyle(document.getElementById("coopPads")).display !== "none";
+  }
+};
 el("loading").style.display = "none";
 el("menu").classList.remove("hidden");
 buildWorld();

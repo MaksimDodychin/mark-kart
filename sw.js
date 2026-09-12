@@ -1,6 +1,6 @@
-// service worker (версия по содержимому: a6c56dda4b)
+// service worker (версия по содержимому: 5bb094959f)
 // страница игры — network-first (всегда свежая при интернете), офлайн — из кэша.
-const CACHE = 'mark-kart-a6c56dda4b';
+const CACHE = 'mark-kart-5bb094959f';
 const ASSETS = ['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./icon-512-maskable.png','./apple-touch-icon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => {
