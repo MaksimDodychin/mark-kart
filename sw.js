@@ -1,8 +1,8 @@
-// service worker (версия по содержимому: a6799c1d27)
+// service worker (версия по содержимому: 4956db42a3)
 // страница игры — network-first (всегда свежая при интернете), офлайн — из кэша.
-const CACHE = 'mark-kart-a6799c1d27';
+const CACHE = 'mark-kart-4956db42a3';
 const ASSETS = ['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./icon-512-maskable.png','./apple-touch-icon.png'];
-self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())); });
+self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(u => new Request(u, {cache:'reload'})))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => {
   e.waitUntil((async () => {
     const ks = await caches.keys();
@@ -17,9 +17,9 @@ self.addEventListener('activate', e => {
       for (const w of окна) {
         if (!w.url.startsWith(self.registration.scope)) continue;
         const адрес = new URL(w.url);
-        if (адрес.searchParams.get('v') === 'a6799c1d27') continue;
-        адрес.searchParams.set('v','a6799c1d27');
-        await w.navigate(адрес.href);
+        if (адрес.searchParams.get('v') === '4956db42a3') continue;
+        адрес.searchParams.set('v','4956db42a3');
+        w.navigate(адрес.href).catch(() => {});
       }
     } catch (_) {}
   })());
@@ -28,13 +28,20 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const isDoc = e.request.mode === 'navigate' || e.request.destination === 'document';
-  if (isDoc) {
-    e.respondWith(fetch(e.request).then(resp => {
-      if(resp.ok){const cp=resp.clone();caches.open(CACHE).then(c=>c.put('./index.html',cp));}return resp;
-    }).catch(() => caches.match(e.request).then(r => r || caches.match('./index.html'))));
-  } else {
-    e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).then(resp => {
-      if(resp.ok){const cp=resp.clone();caches.open(CACHE).then(c=>c.put(e.request,cp));}return resp;
-    })));
-  }
+  e.respondWith((async () => {
+    const c = await caches.open(CACHE);
+    if (isDoc) {
+      try {
+        const r = await fetch(new Request(e.request, {cache:'no-cache'}));
+        if (!r.ok) throw new Error('Game download failed');
+        await c.put('./index.html', r.clone());
+        return r;
+      } catch (_) { return (await c.match('./index.html')) || Response.error(); }
+    }
+    const hit = await c.match(e.request);
+    if (hit) return hit;
+    const r = await fetch(e.request);
+    if (r.ok) await c.put(e.request, r.clone());
+    return r;
+  })());
 });
