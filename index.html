@@ -33061,11 +33061,22 @@ animate();
   #mkn-пузырь { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); z-index:100000;
     background:#0b1220e8; border:2px solid #7dd3fc55; border-radius:14px; padding:9px 16px;
     font:800 14px system-ui; color:#eaf0ff; display:none; max-width:80vw; text-align:center; }
+  /* 👥 табло для игр без 3D-мира: видно, кто ещё играет и как у него дела */
+  #mkn-табло { position:fixed; right:8px; top:118px; z-index:99998; display:none;
+    background:#0b1220e0; border:2px solid #7dd3fc44; border-radius:14px; padding:8px 10px;
+    font:700 12.5px system-ui; color:#eaf0ff; max-width:180px; }
+  #mkn-табло.mkn-on { display:block; }
+  #mkn-табло .шап { font-weight:900; font-size:11.5px; opacity:.8; margin-bottom:5px; }
+  #mkn-табло .стр { display:flex; align-items:center; gap:6px; margin-bottom:3px; }
+  #mkn-табло .точка { width:10px; height:10px; border-radius:50%; flex:none; }
+  #mkn-табло .н { font-weight:900; }
+  #mkn-табло .т { opacity:.85; }
   #mkn-мини { position:fixed; left:6px; top:calc(50% + 100px); z-index:99999; display:none;
     background:#0b1220dd; border:2px solid #7dd3fc44; border-radius:12px; padding:5px 9px;
     font:800 12px system-ui; color:#7dd3fc; cursor:pointer; }
   #mkn-мини.mkn-on { display:block; }
 </style>
+<div id="mkn-табло"></div>
 <div id="mkn-пузырь"></div>
 <div id="mkn-мини"></div>
 <div id="mkn-экран"><div class="mkn-box">
@@ -33924,9 +33935,23 @@ animate();
     const г = игроки.find(x => x.ид === ид);
     return г ? г.имя : 'Игрок';
   }
+  function нарисоватьТабло() {
+    const т = $('mkn-табло'); if (!т) return;
+    const ключи = Object.keys(чужие);
+    if (!ключи.length) { т.classList.remove('mkn-on'); return; }
+    т.classList.add('mkn-on');
+    т.innerHTML = '<div class="шап">👥 КТО ЕЩЁ ИГРАЕТ</div>' + ключи.map(ид => {
+      const ц = '#' + цветИгрока(ид).toString(16).padStart(6, '0');
+      const д = чужие[ид].д || {};
+      return '<div class="стр"><div class="точка" style="background:' + ц + '"></div>' +
+        '<div class="н">' + именаИгрока(ид) + '</div>' +
+        '<div class="т">' + (д.текст || '') + '</div></div>';
+    }).join('');
+  }
   function тикВИгре(dt) {
     const И = window.__мкИгра;
     if (!И || !peer || !код) return;
+    if (!И.создать) нарисоватьТабло();      // игра без 3D-мира — показываем табло сами
     /* шлём своё положение */
     послТ -= dt;
     if (послТ <= 0) {
@@ -33939,7 +33964,7 @@ animate();
     for (const ид in чужие) {
       чужие[ид].живT -= dt;
       if (чужие[ид].живT <= 0) {
-        try { И.убрать(чужие[ид].ручка); } catch (_) {}
+        if (И.убрать && чужие[ид].ручка) { try { И.убрать(чужие[ид].ручка); } catch (_) {} }
         delete чужие[ид];
       }
     }
@@ -33951,16 +33976,22 @@ animate();
     let ч = чужие[d.ид];
     if (!ч) {
       let ручка = null;
-      try { ручка = И.создать({ имя:именаИгрока(d.ид), цвет:цветИгрока(d.ид), ид:d.ид }); } catch (_) {}
-      if (!ручка) return;
+      if (И.создать) {
+        try { ручка = И.создать({ имя:именаИгрока(d.ид), цвет:цветИгрока(d.ид), ид:d.ид }); } catch (_) {}
+        if (!ручка) return;
+      }
       ч = чужие[d.ид] = { ручка, живT:3 };
     }
     ч.живT = 3; ч.д = d.д;
-    try { И.двигать(ч.ручка, d.д); } catch (_) {}
+    if (И.двигать && ч.ручка) { try { И.двигать(ч.ручка, d.д); } catch (_) {} }
   }
   function убратьВсехЧужих() {
     const И = window.__мкИгра;
-    for (const ид in чужие) { if (И) { try { И.убрать(чужие[ид].ручка); } catch (_) {} } delete чужие[ид]; }
+    for (const ид in чужие) {
+      if (И && И.убрать && чужие[ид].ручка) { try { И.убрать(чужие[ид].ручка); } catch (_) {} }
+      delete чужие[ид];
+    }
+    const т = $('mkn-табло'); if (т) т.classList.remove('mkn-on');
   }
   (function качели() {                        // свой маленький цикл, не мешаем игре
     let было = performance.now();
