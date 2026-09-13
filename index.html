@@ -32655,6 +32655,81 @@ function coopFinish(win) {
   megaConfetti(14);
   wowBurst(\u043F\u0435\u0440\u0432\u044B\u0439 ? "1-\u0419 \u0418\u0413\u0420\u041E\u041A!" : "2-\u0419 \u0418\u0413\u0420\u041E\u041A!", "\u041F\u043E\u0431\u0435\u0434\u0430!");
 }
+function \u043C\u043A\u041F\u043E\u0434\u043F\u0438\u0441\u044C(\u0438\u043C\u044F, \u0446\u0432\u0435\u0442) {
+  const c = document.createElement("canvas");
+  c.width = 256;
+  c.height = 64;
+  const g = c.getContext("2d");
+  g.fillStyle = "rgba(10,14,24,.78)";
+  if (g.roundRect) {
+    g.beginPath();
+    g.roundRect(4, 8, 248, 46, 14);
+    g.fill();
+  } else
+    g.fillRect(4, 8, 248, 46);
+  g.strokeStyle = "#" + \u0446\u0432\u0435\u0442.toString(16).padStart(6, "0");
+  g.lineWidth = 5;
+  if (g.roundRect) {
+    g.beginPath();
+    g.roundRect(4, 8, 248, 46, 14);
+    g.stroke();
+  }
+  g.fillStyle = "#fff";
+  g.font = "bold 30px system-ui";
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.fillText(String(\u0438\u043C\u044F || "\u0418\u0433\u0440\u043E\u043A").slice(0, 14), 128, 32);
+  const t2 = new CanvasTexture(c);
+  t2.colorSpace = SRGBColorSpace;
+  const sp = new Sprite(new SpriteMaterial({ map: t2, depthTest: false, transparent: true }));
+  sp.renderOrder = 999;
+  return sp;
+}
+window.__\u043C\u043A\u0418\u0433\u0440\u0430 = {
+  \u043C\u043E\u0438\u0414\u0430\u043D\u043D\u044B\u0435() {
+    return state === "race" && player ? { x: player.x, z: player.z, h: player.h } : null;
+  },
+  \u0441\u043E\u0437\u0434\u0430\u0442\u044C(\u0438) {
+    const g = new Group();
+    const \u043A = new Mesh(
+      new BoxGeometry(1.5, 0.8, 2.1),
+      new MeshStandardMaterial({
+        color: \u0438.\u0446\u0432\u0435\u0442,
+        emissive: \u0438.\u0446\u0432\u0435\u0442,
+        emissiveIntensity: 0.35,
+        roughness: 0.5,
+        transparent: true,
+        opacity: 0.92
+      })
+    );
+    \u043A.position.y = 0.55;
+    g.add(\u043A);
+    const \u0448\u043B = new Mesh(
+      new SphereGeometry(0.42, 12, 9),
+      new MeshStandardMaterial({ color: 15778720, roughness: 0.7 })
+    );
+    \u0448\u043B.position.set(0, 1.15, -0.2);
+    g.add(\u0448\u043B);
+    const \u0441\u0432 = new PointLight(\u0438.\u0446\u0432\u0435\u0442, 2.2, 9, 1.8);
+    \u0441\u0432.position.y = 1;
+    g.add(\u0441\u0432);
+    const \u043F = \u043C\u043A\u041F\u043E\u0434\u043F\u0438\u0441\u044C(\u0438.\u0438\u043C\u044F, \u0438.\u0446\u0432\u0435\u0442);
+    \u043F.scale.set(3.4, 0.85, 1);
+    \u043F.position.y = 2.3;
+    g.add(\u043F);
+    scene.add(g);
+    return g;
+  },
+  \u0434\u0432\u0438\u0433\u0430\u0442\u044C(g, d) {
+    if (!d)
+      return;
+    g.position.set(d.x || 0, 0, d.z || 0);
+    g.rotation.y = d.h || 0;
+  },
+  \u0443\u0431\u0440\u0430\u0442\u044C(g) {
+    scene.remove(g);
+  }
+};
 window.__dbg = {
   get audio() {
     return Sound.status();
@@ -33331,6 +33406,7 @@ animate();
         человечки[к].фраза = d.текст; человечки[к].фразаT = 3.5; } }
       if (хозяин) разослать(d, откуда);
       слушатели.чат.forEach(f => f(d)); return; }
+    if (d.т === 'поз') { приняли_поз(d, откуда); return; }
     if (d.т === 'комн') {                       // положение и цвет человечка в 2D-комнате
       if (хозяин) разослать(d, откуда);
       const ч = человечки[d.ид] || (человечки[d.ид] = { x:0.5, y:0.6, цx:0.5, цy:0.6, цв:0, имя:d.имя });
@@ -33472,6 +33548,7 @@ animate();
     рисоватьИгроков();
   }
   function выйти() {
+    убратьВсехЧужих();
     $('mkn-профиль').style.display = '';
     $('mkn-друзья').style.display = '';
     try { if (peer) peer.destroy(); } catch (_) {}
@@ -33831,6 +33908,68 @@ animate();
     }, 900);
   })();
 
+  /* ═══════════ 👀 ВИДЕТЬ ДРУГ ДРУГА ВНУТРИ ИГРЫ ═══════════
+     Игра сама говорит, где её игрок, и сама умеет показать чужого —
+     этот слой только гоняет данные между устройствами.
+     Игра объявляет window.__мкИгра = { моиДанные, создать, двигать, убрать }. */
+  const чужие = {};          // ид → { ручка, данные, живT }
+  let вИгреТаймер = null, послТ = 0;
+  const ЦВЕТА_ИГРОКОВ = [0xef4444, 0xf59e0b, 0x22c55e, 0x38bdf8, 0x8b5cf6, 0xec4899, 0xe5e7eb, 0xfb923c];
+
+  function цветИгрока(ид) {
+    let h = 0; for (let i = 0; i < ид.length; i++) h = (h*31 + ид.charCodeAt(i)) | 0;
+    return ЦВЕТА_ИГРОКОВ[Math.abs(h) % ЦВЕТА_ИГРОКОВ.length];
+  }
+  function именаИгрока(ид) {
+    const г = игроки.find(x => x.ид === ид);
+    return г ? г.имя : 'Игрок';
+  }
+  function тикВИгре(dt) {
+    const И = window.__мкИгра;
+    if (!И || !peer || !код) return;
+    /* шлём своё положение */
+    послТ -= dt;
+    if (послТ <= 0) {
+      послТ = 0.08;
+      let d = null;
+      try { d = И.моиДанные(); } catch (_) {}
+      if (d) разослать({ т:'поз', ид:мойИд, д:d });
+    }
+    /* чужие: убираем тех, кто пропал */
+    for (const ид in чужие) {
+      чужие[ид].живT -= dt;
+      if (чужие[ид].живT <= 0) {
+        try { И.убрать(чужие[ид].ручка); } catch (_) {}
+        delete чужие[ид];
+      }
+    }
+  }
+  function приняли_поз(d, откуда) {
+    if (хозяин) разослать(d, откуда);          // хозяин пересылает всем
+    if (!d.ид || d.ид === мойИд) return;
+    const И = window.__мкИгра; if (!И) return;
+    let ч = чужие[d.ид];
+    if (!ч) {
+      let ручка = null;
+      try { ручка = И.создать({ имя:именаИгрока(d.ид), цвет:цветИгрока(d.ид), ид:d.ид }); } catch (_) {}
+      if (!ручка) return;
+      ч = чужие[d.ид] = { ручка, живT:3 };
+    }
+    ч.живT = 3; ч.д = d.д;
+    try { И.двигать(ч.ручка, d.д); } catch (_) {}
+  }
+  function убратьВсехЧужих() {
+    const И = window.__мкИгра;
+    for (const ид in чужие) { if (И) { try { И.убрать(чужие[ид].ручка); } catch (_) {} } delete чужие[ид]; }
+  }
+  (function качели() {                        // свой маленький цикл, не мешаем игре
+    let было = performance.now();
+    setInterval(() => {
+      const теперь = performance.now(), dt = Math.min(0.25, (теперь - было)/1000); было = теперь;
+      try { тикВИгре(dt); } catch (_) {}
+    }, 60);
+  })();
+
   /* ── ОБЩИЙ ДОСТУП ДЛЯ ИГР ── */
   window.МКСеть = {
     get вкл() { return !!peer && !!код; },
@@ -33845,6 +33984,9 @@ animate();
     наИгроков(f) { слушатели.игроки.push(f); },
     наСтарт(f) { слушатели.старт.push(f); },
     наЧат(f) { слушатели.чат.push(f); },
+    get вИгре() { return Object.keys(чужие).length; },
+    get чужиеПоз() { const o = {}; for (const ид in чужие) o[именаИгрока(ид)] = чужие[ид].д || null; return o; },
+    get чужиеИмена() { return Object.keys(чужие).map(ид => именаИгрока(ид)); },
     get человечки() { try { return JSON.parse(JSON.stringify(человечки)); } catch (_) { return {}; } },
     идти(x, y) { const я = мойЧеловечек(); я.x = x; я.y = y; послатьМесто(); return { x, y }; },
     цвет(i) { мойЦвет = i; профиль.цвет = i; сохранитьПрофиль();
