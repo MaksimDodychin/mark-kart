@@ -32965,6 +32965,12 @@ animate();
   #mkn-цвета { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-bottom:10px; }
   #mkn-цвета div { width:26px; height:26px; border-radius:50%; cursor:pointer; border:2px solid #ffffff33; }
   #mkn-цвета div.mkn-выбр { border-color:#fff; box-shadow:0 0 12px #ffffff88; transform:scale(1.15); }
+  #mkn-сколько { display:flex; gap:6px; flex-wrap:wrap; }
+  #mkn-сколько button, #mkn-выборИгр button { font:800 13px/1 inherit; padding:8px 12px;
+    border-radius:11px; cursor:pointer; border:1.5px solid #ffffff26; background:#ffffff10; color:#dbe7ff; }
+  #mkn-сколько button.mkn-выбр, #mkn-выборИгр button.mkn-выбр {
+    border-color:#7dd3fc; color:#7dd3fc; background:#7dd3fc1a; }
+  #mkn-выборИгр { display:grid; grid-template-columns:repeat(auto-fill,minmax(104px,1fr)); gap:6px; }
   #mkn-игрыряд { display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:6px; }
   #mkn-игрыряд button { font:800 12px/1.25 inherit; padding:9px 6px; border-radius:11px; cursor:pointer;
     border:1.5px solid #ffffff26; background:#ffffff12; color:#dbe7ff; }
@@ -33006,6 +33012,11 @@ animate();
 
   <div class="mkn-карта" id="mkn-начало">
     <h3>👥 Играть вместе</h3>
+    <div class="mkn-под">Сколько нас будет?</div>
+    <div id="mkn-сколько"></div>
+    <div class="mkn-под" style="margin-top:8px">Во что можно играть в этой комнате?</div>
+    <div id="mkn-выборИгр"></div>
+    <div style="height:10px"></div>
     <button class="mkn-кн mkn-зел" id="mkn-создать">🏠 СОЗДАТЬ КОМНАТУ</button>
     <div style="height:6px"></div>
     <input id="mkn-поле" maxlength="5" placeholder="КОД">
@@ -33018,6 +33029,11 @@ animate();
     <h3>🏠 Комната</h3>
     <div class="mkn-под" style="text-align:center">Скажи друзьям этот код</div>
     <div class="mkn-код" id="mkn-кодтут">—</div>
+    <div class="mkn-ряд" style="margin-bottom:8px">
+      <button class="mkn-кн mkn-сер" id="mkn-копи">📋 СКОПИРОВАТЬ КОД</button>
+      <button class="mkn-кн mkn-сер" id="mkn-позвать">📨 ПОЗВАТЬ ДРУГА</button>
+    </div>
+    <div class="mkn-под" id="mkn-ктоМожет" style="text-align:center;margin-bottom:8px"></div>
     <canvas id="mkn-пол" width="640" height="380"></canvas>
     <div class="mkn-под" style="text-align:center;margin:4px 0 8px">
       Бегай стрелками или тяни пальцем по комнате
@@ -33143,6 +33159,7 @@ animate();
     { id:'party',     имя:'Вечеринка',    em:'🎉', вместе:true  },
     { id:'draw',      имя:'Рисовалка',    em:'🎨', вместе:true  },
     { id:'ghostlife', имя:'Жизнь призрака', em:'👻', вместе:false },
+    { id:'dustmaze',  имя:'Пыльный мститель', em:'🌫', вместе:false },
     { id:'phantom',   имя:'Поместье',     em:'👻', вместе:false },
     { id:'emoplanet', имя:'Эмоциональная планета', em:'🪐', вместе:false },
     { id:'technobunt',имя:'Технобунт',    em:'⏻', вместе:false },
@@ -33164,27 +33181,58 @@ animate();
   }
 
   /* ── подгружаем движок связи только когда он реально нужен ── */
+  /* ⚠️ Если интернет медленный, скрипт связи может просто ВИСЕТЬ — и игра
+     молча стоит на «Открываю комнату…». Поэтому у каждой попытки свой срок. */
   function загрузитьPeer() {
     if (window.Peer) return Promise.resolve();
     const адреса = ['https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js',
-                    'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js'];
+                    'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js',
+                    'https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js'];
     return new Promise((res, rej) => {
       let i = 0;
       const тянуть = () => {
+        if (window.Peer) { res(); return; }
         if (i >= адреса.length) { rej(new Error('нет связи')); return; }
+        const адрес = адреса[i++];
+        состояние('📡 Тяну связь…' + (i > 1 ? ' (запасной путь ' + i + ')' : ''));
         const s = document.createElement('script');
-        s.src = адреса[i++]; s.onload = () => res(); s.onerror = тянуть;
+        let сорвалось = false;
+        const срок = setTimeout(() => { сорвалось = true; s.remove(); тянуть(); }, 7000);
+        s.src = адрес;
+        s.onload = () => { clearTimeout(срок); if (!сорвалось) (window.Peer ? res() : тянуть()); };
+        s.onerror = () => { clearTimeout(срок); if (!сорвалось) тянуть(); };
         document.head.appendChild(s);
       };
       тянуть();
     });
   }
+  /* если комната не открылась за это время — честно говорим, а не висим */
+  let сторож = null;
+  function сторожВкл(что) {
+    clearTimeout(сторож);
+    сторож = setTimeout(() => {
+      if (peer && код) return;
+      состояние('😕 ' + что + ' не получилось. Похоже, интернет слабый. Нажми ещё раз.', true);
+      пузырь('😕 Не вышло. Попробуй ещё раз', 4);
+      try { if (peer) peer.destroy(); } catch (_) {}
+      peer = null; код = '';
+    }, 14000);
+  }
+  const сторожВыкл = () => clearTimeout(сторож);
 
   const идКомнаты = к => 'mkroom-' + вЛат(к);
 
+  function именаЕсли() {           // без имени раньше был тупик — теперь просто дарим ник
+    if (профиль.имя) return;
+    профиль.имя = НИКИ[Math.floor(Math.random()*НИКИ.length)];
+    сохранитьПрофиль();
+    $('mkn-моёимя').textContent = профиль.имя;
+    $('mkn-имяполе').value = профиль.имя;
+    пузырь('🏷 Пока будешь ' + профиль.имя + ' — имя можно поменять сверху', 4);
+  }
   async function создатьКомнату(готовыйКод) {
-    if (!профиль.имя) { пузырь('Сначала впиши имя и выбери аватарку'); открыть(); return; }
-    состояние('Открываю комнату…');
+    именаЕсли();
+    состояние('Открываю комнату…'); сторожВкл('Создать комнату');
     try { await загрузитьPeer(); }
     catch (_) { состояние('Нет интернета. Онлайн работает только со связью.', true); return; }
     код = готовыйКод || новыйКод();
@@ -33192,14 +33240,20 @@ animate();
     if (peer) { try { peer.destroy(); } catch (_) {} }
     peer = new Peer(идКомнаты(код), { debug:0 });
     peer.on('open', ид => {
+      сторожВыкл();
       мойИд = ид; игроки = [{ ид, имя:профиль.имя, ава:профиль.ава, хозяин:true }];
       показатьКомнату(); состояние('Комната открыта. Диктуй код!');
       обновитьМини();
     });
     peer.on('connection', c => {
+      if (игроки.length >= настройки.макс) {        // комната полна — вежливо отказываем
+        c.on('open', () => { try { c.send({ т:'полно', макс:настройки.макс }); } catch (_) {}
+          setTimeout(() => { try { c.close(); } catch (_) {} }, 400); });
+        return;
+      }
       связи.push(c);
       c.on('open', () => {
-        c.send({ т:'привет', игроки, хозяин:{ имя:профиль.имя, ава:профиль.ава } });
+        c.send({ т:'привет', игроки, хозяин:{ имя:профиль.имя, ава:профиль.ава }, настройки });
       });
       c.on('data', d => приняли(d, c));
       c.on('close', () => { связи = связи.filter(x => x !== c);
@@ -33209,15 +33263,16 @@ animate();
     peer.on('error', e => {
       if (String(e).includes('is taken')) { состояние('Такая комната уже есть — беру другой код', true);
         setTimeout(() => создатьКомнату(), 400); return; }
-      состояние('Не получилось: ' + e.type, true);
+      сторожВыкл();
+      состояние('😕 Не получилось: ' + (e.type || e.message) + '. Проверь интернет и нажми ещё раз.', true);
     });
   }
 
   async function войтиВКомнату(введён) {
-    if (!профиль.имя) { пузырь('Сначала впиши имя и выбери аватарку'); открыть(); return; }
+    именаЕсли();
     const к = (введён || $('mkn-поле').value || '').toUpperCase().replace(/[^А-ЯЁ]/g, '').slice(0, 5);
     if (к.length !== 5) { состояние('Код — ровно пять русских букв', true); return; }
-    состояние('Ищу комнату…');
+    состояние('Ищу комнату…'); сторожВкл('Войти в комнату');
     try { await загрузитьPeer(); }
     catch (_) { состояние('Нет интернета. Онлайн работает только со связью.', true); return; }
     код = к; хозяин = false;
@@ -33227,6 +33282,7 @@ animate();
       мойИд = ид;
       хозСвязь = peer.connect(идКомнаты(к), { reliable:true });
       хозСвязь.on('open', () => {
+        сторожВыкл();
         хозСвязь.send({ т:'явился', имя:профиль.имя, ава:профиль.ава });
         показатьКомнату(); состояние('Вошёл в комнату ' + к);
         обновитьМини();
@@ -33237,7 +33293,8 @@ animate();
       setTimeout(() => { if (!хозСвязь || !хозСвязь.open) состояние('Такой комнаты нет. Проверь код.', true); }, 6000);
     });
     peer.on('call', зв => { зв.answer(мойПоток || undefined); принятьЗвонок(зв); });
-    peer.on('error', e => состояние('Не получилось: ' + e.type, true));
+    peer.on('error', e => { сторожВыкл();
+      состояние('😕 Не получилось: ' + (e.type || e.message) + '. Проверь код и интернет.', true); });
   }
 
   function разослать(о, кроме) {
@@ -33256,7 +33313,10 @@ animate();
       запомнитьДруга({ имя:d.имя, ава:d.ава });
       return;
     }
+    if (d.т === 'полно') { состояние('🚪 В этой комнате уже полно игроков (' + d.макс + '). ' +
+      'Попроси хозяина освободить место.', true); выйти(); return; }
     if (d.т === 'привет') { игроки = d.игроки.concat([{ ид:мойИд, имя:профиль.имя, ава:профиль.ава }]);
+      if (d.настройки) { настройки = d.настройки; рисоватьВыборИгр(); показатьКтоМожет(); }
       рисоватьИгроков(); if (d.хозяин) запомнитьДруга(d.хозяин); return; }
     if (d.т === 'люди') { игроки = d.игроки; рисоватьИгроков(); return; }
     if (d.т === 'чат') { чатСтрока(d.сист ? 'система' : d.имя, d.текст);
@@ -33380,12 +33440,18 @@ animate();
     обновитьМини();
     слушатели.игроки.forEach(f => f(игроки));
   }
+  function показатьКтоМожет() {
+    const э = $('mkn-ктоМожет'); if (!э) return;
+    const имена = СПИСОК.filter(и => настройки.игры.includes(и.id)).map(и => и.em);
+    э.innerHTML = '👥 мест: <b>' + настройки.макс + '</b> · 🎮 игр: <b>' + имена.length + '</b> ' +
+      имена.slice(0, 10).join(' ');
+  }
   function показатьКомнату() {
     $('mkn-начало').style.display = 'none';
     $('mkn-комната').style.display = 'block';
     $('mkn-чаткарта').style.display = 'block';
     $('mkn-кодтут').textContent = код;
-    рисоватьЦвета(); рисоватьВыборИгр(); показатьВечеринку();
+    рисоватьЦвета(); рисоватьВыборИгр(); показатьВечеринку(); показатьКтоМожет();
     рисоватьИгроков();
   }
   function выйти() {
@@ -33408,7 +33474,7 @@ animate();
     $('mkn-имяполе').value = профиль.имя || '';
     рисоватьАву($('mkn-мояава'), профиль.ава);
     $('mkn-моёимя').textContent = профиль.имя || 'Игрок';
-    рисоватьРядАватарок(); рисоватьНики(); рисоватьДрузей();
+    рисоватьРядАватарок(); рисоватьНики(); рисоватьДрузей(); рисоватьНастройки();
   }
   function рисоватьНики() {
     const р = $('mkn-ники'); if (!р) return;
@@ -33443,6 +33509,34 @@ animate();
   try { мойЦвет = +(JSON.parse(localStorage.getItem(КЛЮЧ) || '{}').цвет || 0); } catch (_) {}
   let вечеринка = null;
   try { вечеринка = JSON.parse(localStorage.getItem('мк-вечеринка') || 'null'); } catch (_) {}
+  /* 🛠 настройки комнаты (заказ Марка): сколько игроков и во что можно играть */
+  let настройки = { макс:4, игры:СПИСОК.map(и => и.id) };
+  try { const н = JSON.parse(localStorage.getItem('мк-комната') || 'null');
+    if (н && н.игры && н.игры.length) настройки = н; } catch (_) {}
+  const сохранитьНастройки = () => { try { localStorage.setItem('мк-комната', JSON.stringify(настройки)); } catch (_) {} };
+  function рисоватьНастройки() {
+    const с = $('mkn-сколько'); if (!с) return;
+    с.innerHTML = '';
+    [2, 3, 4, 6, 8].forEach(n => {
+      const b = document.createElement('button'); b.textContent = n + ' 👤';
+      if (n === настройки.макс) b.className = 'mkn-выбр';
+      b.onclick = () => { настройки.макс = n; сохранитьНастройки(); рисоватьНастройки(); };
+      с.appendChild(b);
+    });
+    const и = $('mkn-выборИгр'); и.innerHTML = '';
+    СПИСОК.forEach(g => {
+      const b = document.createElement('button');
+      b.innerHTML = g.em + ' ' + g.имя;
+      if (настройки.игры.includes(g.id)) b.className = 'mkn-выбр';
+      b.onclick = () => {
+        const k = настройки.игры.indexOf(g.id);
+        if (k >= 0) { if (настройки.игры.length > 1) настройки.игры.splice(k, 1); }
+        else настройки.игры.push(g.id);
+        сохранитьНастройки(); рисоватьНастройки(); рисоватьВыборИгр();
+      };
+      и.appendChild(b);
+    });
+  }
 
   const пол = $('mkn-пол'), пг = пол.getContext('2d');
   const КЛАВ = {};
@@ -33588,7 +33682,7 @@ animate();
     $('mkn-выбор').style.display = хозяин ? 'block' : 'none';
     const р = $('mkn-игрыряд'); if (!р || !хозяин) return;
     р.innerHTML = '';
-    СПИСОК.forEach(и => {
+    СПИСОК.filter(и => настройки.игры.includes(и.id)).forEach(и => {
       const b = document.createElement('button');
       b.innerHTML = и.em + '<br>' + и.имя + (и.вместе ? '' : '<br><span style="opacity:.6">по очереди</span>');
       b.onclick = () => позватьВИгру(адресИгры(и.id));
@@ -33645,6 +33739,20 @@ animate();
   $('mkn-войти').onclick = () => войтиВКомнату();
   $('mkn-выйти').onclick = выйти;
   $('mkn-голос').onclick = голос;
+  const ссылкаКомнаты = () => ЛОББИ + '?мк=' + encodeURIComponent(код);
+  $('mkn-копи').onclick = async () => {
+    try { await navigator.clipboard.writeText(код); пузырь('📋 Код ' + код + ' скопирован'); }
+    catch (_) { пузырь('Код: ' + код + ' — продиктуй его другу', 5); }
+  };
+  $('mkn-позвать').onclick = async () => {
+    const текст = 'Заходи ко мне играть! Код комнаты: ' + код;
+    if (navigator.share) {
+      try { await navigator.share({ title:'Планета игр', text:текст, url:ссылкаКомнаты() }); return; } catch (_) {}
+    }
+    try { await navigator.clipboard.writeText(текст + ' ' + ссылкаКомнаты());
+      пузырь('📨 Ссылка скопирована — отправь другу', 4.5); }
+    catch (_) { пузырь('Скажи другу код: ' + код, 5); }
+  };
   $('mkn-вечеринка').onclick = начатьВечеринку;
   $('mkn-поле').addEventListener('input', e => {
     e.target.value = e.target.value.toUpperCase().replace(/[^А-ЯЁ]/g, '').slice(0, 5);
