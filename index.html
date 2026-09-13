@@ -32965,6 +32965,10 @@ animate();
   #mkn-цвета { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-bottom:10px; }
   #mkn-цвета div { width:26px; height:26px; border-radius:50%; cursor:pointer; border:2px solid #ffffff33; }
   #mkn-цвета div.mkn-выбр { border-color:#fff; box-shadow:0 0 12px #ffffff88; transform:scale(1.15); }
+  #mkn-шляпы { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-bottom:10px; }
+  #mkn-шляпы button { font:700 17px/1 inherit; padding:6px 10px; border-radius:11px; cursor:pointer;
+    border:1.5px solid #ffffff26; background:#ffffff10; }
+  #mkn-шляпы button.mkn-выбр { border-color:#7dd3fc; background:#7dd3fc1a; }
   #mkn-сколько { display:flex; gap:6px; flex-wrap:wrap; }
   #mkn-сколько button, #mkn-выборИгр button { font:800 13px/1 inherit; padding:8px 12px;
     border-radius:11px; cursor:pointer; border:1.5px solid #ffffff26; background:#ffffff10; color:#dbe7ff; }
@@ -33038,7 +33042,10 @@ animate();
     <div class="mkn-под" style="text-align:center;margin:4px 0 8px">
       Бегай стрелками или тяни пальцем по комнате
     </div>
+    <div class="mkn-под" id="mkn-ждём" style="text-align:center;margin-bottom:8px"></div>
+    <div class="mkn-под" style="text-align:center;margin-bottom:4px">👕 Гардероб</div>
     <div id="mkn-цвета"></div>
+    <div id="mkn-шляпы"></div>
     <div id="mkn-список"></div>
     <div id="mkn-выбор" style="display:none">
       <h3 style="margin-top:10px">🎮 Во что играем</h3>
@@ -33327,7 +33334,7 @@ animate();
     if (d.т === 'комн') {                       // положение и цвет человечка в 2D-комнате
       if (хозяин) разослать(d, откуда);
       const ч = человечки[d.ид] || (человечки[d.ид] = { x:0.5, y:0.6, цx:0.5, цy:0.6, цв:0, имя:d.имя });
-      ч.цx = d.x; ч.цy = d.y; ч.цв = d.цв; ч.имя = d.имя;
+      ч.цx = d.x; ч.цy = d.y; ч.цв = d.цв; ч.имя = d.имя; ч.шляпа = d.шляпа || 0;
       return;
     }
     if (d.т === 'вечеринка') { вечеринка = d.в; показатьВечеринку(); return; }
@@ -33437,6 +33444,10 @@ animate();
       с.appendChild(r);
     });
     $('mkn-моёсост').textContent = код ? ('в комнате ' + код + ' · игроков ' + игроки.length) : 'не в комнате';
+    const ж = $('mkn-ждём');
+    if (ж) ж.innerHTML = игроки.length < 2
+      ? '⏳ <b>Жди игроков</b> — скажи другу код <b>' + код + '</b> или пришли ссылку'
+      : '✅ Вас уже <b>' + игроки.length + '</b> · можно начинать';
     обновитьМини();
     слушатели.игроки.forEach(f => f(игроки));
   }
@@ -33448,13 +33459,21 @@ animate();
   }
   function показатьКомнату() {
     $('mkn-начало').style.display = 'none';
+    /* ⚠️ Раньше комната открывалась ВНИЗУ длинной страницы, и Марк её просто
+       не видел: «человечек не появляется». Прячем профиль и прокручиваем к комнате. */
+    $('mkn-профиль').style.display = 'none';
+    $('mkn-друзья').style.display = 'none';
     $('mkn-комната').style.display = 'block';
     $('mkn-чаткарта').style.display = 'block';
+    setTimeout(() => { try { $('mkn-экран').scrollTop = 0;
+      $('mkn-комната').scrollIntoView({ block:'start', behavior:'smooth' }); } catch (_) {} }, 60);
     $('mkn-кодтут').textContent = код;
-    рисоватьЦвета(); рисоватьВыборИгр(); показатьВечеринку(); показатьКтоМожет();
+    рисоватьЦвета(); рисоватьШляпы(); рисоватьВыборИгр(); показатьВечеринку(); показатьКтоМожет();
     рисоватьИгроков();
   }
   function выйти() {
+    $('mkn-профиль').style.display = '';
+    $('mkn-друзья').style.display = '';
     try { if (peer) peer.destroy(); } catch (_) {}
     peer = null; связи = []; хозСвязь = null; игроки = []; код = ''; хозяин = false;
     выключитьГолос();
@@ -33504,9 +33523,11 @@ animate();
      и переписываются. Потом хозяин выбирает игру или вечеринку из трёх. */
   const ЦВЕТА = ['#ef4444','#f59e0b','#eab308','#22c55e','#14b8a6','#38bdf8',
                  '#8b5cf6','#ec4899','#e5e7eb','#fb923c'];
-  const человечки = {};              // ид → {x, y, цx, цy, цв, имя, фраза, фразаT}
-  let мойЦвет = 0, ходT = 0, тянуКуда = null;
-  try { мойЦвет = +(JSON.parse(localStorage.getItem(КЛЮЧ) || '{}').цвет || 0); } catch (_) {}
+  const ШЛЯПЫ = ['—', '🎩', '👑', '🎀', '🧢', '🐱', '⭐', '🌸'];
+  const человечки = {};              // ид → {x, y, цx, цy, цв, шляпа, имя, фраза, фразаT}
+  let мойЦвет = 0, мояШляпа = 0, ходT = 0, тянуКуда = null;
+  try { const п0 = JSON.parse(localStorage.getItem(КЛЮЧ) || '{}');
+    мойЦвет = +(п0.цвет || 0); мояШляпа = +(п0.шляпа || 0); } catch (_) {}
   let вечеринка = null;
   try { вечеринка = JSON.parse(localStorage.getItem('мк-вечеринка') || 'null'); } catch (_) {}
   /* 🛠 настройки комнаты (заказ Марка): сколько игроков и во что можно играть */
@@ -33555,8 +33576,20 @@ animate();
   }
 
   function мойЧеловечек() {
-    if (!человечки[мойИд]) человечки[мойИд] = { x:0.5, y:0.6, цx:0.5, цy:0.6, цв:мойЦвет, имя:профиль.имя };
+    if (!человечки[мойИд]) человечки[мойИд] = { x:0.5, y:0.6, цx:0.5, цy:0.6, цв:мойЦвет,
+      шляпа:мояШляпа, имя:профиль.имя };
     return человечки[мойИд];
+  }
+  function рисоватьШляпы() {
+    const р = $('mkn-шляпы'); if (!р) return;
+    р.innerHTML = '';
+    ШЛЯПЫ.forEach((ш, i) => {
+      const b = document.createElement('button'); b.textContent = ш;
+      if (i === мояШляпа) b.className = 'mkn-выбр';
+      b.onclick = () => { мояШляпа = i; профиль.шляпа = i; сохранитьПрофиль();
+        мойЧеловечек().шляпа = i; рисоватьШляпы(); послатьМесто(true); };
+      р.appendChild(b);
+    });
   }
   function рисоватьЦвета() {
     const р = $('mkn-цвета'); р.innerHTML = '';
@@ -33571,7 +33604,8 @@ animate();
   function послатьМесто(сразу) {
     if (!peer || !код) return;
     const я = мойЧеловечек();
-    разослать({ т:'комн', ид:мойИд, имя:профиль.имя, x:+я.x.toFixed(3), y:+я.y.toFixed(3), цв:мойЦвет });
+    разослать({ т:'комн', ид:мойИд, имя:профиль.имя, x:+я.x.toFixed(3), y:+я.y.toFixed(3),
+      цв:мойЦвет, шляпа:мояШляпа });
   }
 
   function рисоватьКомнату(dt) {
@@ -33620,6 +33654,12 @@ animate();
       пг.fillStyle = '#2b2233';
       пг.beginPath(); пг.arc(x - r*0.2, y - r*1.0, r*0.09, 0, 7); пг.fill();
       пг.beginPath(); пг.arc(x + r*0.2, y - r*1.0, r*0.09, 0, 7); пг.fill();
+      if (ч.шляпа) {                               // 👕 гардероб
+        пг.font = Math.round(r*1.5) + 'px system-ui';
+        пг.textAlign = 'center'; пг.textBaseline = 'middle';
+        пг.fillText(ШЛЯПЫ[ч.шляпа % ШЛЯПЫ.length], x, y - r*1.85);
+        пг.textBaseline = 'alphabetic';
+      }
       /* имя */
       пг.font = '700 13px system-ui'; пг.textAlign = 'center';
       пг.fillStyle = 'rgba(0,0,0,.55)';
@@ -33648,7 +33688,7 @@ animate();
     requestAnimationFrame(цикл);
     const dt = Math.min(0.05, (now - прошлоеВремя)/1000); прошлоеВремя = now;
     if (!$('mkn-экран').classList.contains('mkn-on') || !код) return;
-    const я = мойЧеловечек(); я.имя = профиль.имя; я.цв = мойЦвет;
+    const я = мойЧеловечек(); я.имя = профиль.имя; я.цв = мойЦвет; я.шляпа = мояШляпа;
     let dx = 0, dy = 0;
     if (КЛАВ.ArrowLeft || КЛАВ.KeyA) dx -= 1;
     if (КЛАВ.ArrowRight || КЛАВ.KeyD) dx += 1;
