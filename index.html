@@ -33104,6 +33104,7 @@ animate();
     <button class="mkn-кн mkn-сер" id="mkn-искать">🔍 НАЙТИ ЧУЖИЕ КОМНАТЫ</button>
     <div id="mkn-списокКомнат"></div>
     <button class="mkn-кн mkn-сер" id="mkn-проверка" style="margin-top:6px">🩺 ПРОВЕРИТЬ СВЯЗЬ</button>
+    <button class="mkn-кн mkn-сер" id="mkn-обновить" style="margin-top:6px">🔄 ОБНОВИТЬ ИГРУ НАСИЛУ</button>
     <div class="mkn-сост" id="mkn-сост"></div>
     <details id="mkn-настройки" style="margin-top:10px">
       <summary style="cursor:pointer;font-weight:900;padding:6px 0">⚙️ Настройки комнаты</summary>
@@ -33165,6 +33166,11 @@ animate();
   <div class="mkn-карта" id="mkn-чаткарта" style="display:none">
     <h3>💬 Переписка</h3>
     <div id="mkn-чат"></div>
+    <div class="mkn-ряд" style="margin:8px 0">
+      <input id="mkn-своё" maxlength="120" placeholder="Напиши своими словами…">
+      <button class="mkn-кн mkn-зел" id="mkn-послать" style="max-width:96px">➤</button>
+    </div>
+    <div class="mkn-под" style="margin-bottom:6px">Или готовой фразой:</div>
     <div id="mkn-фразы"></div>
   </div>
 
@@ -34185,8 +34191,33 @@ animate();
     создатьКомнату(свой.length === 5 ? свой : undefined);
   };
   $('mkn-войти').onclick = () => войтиВКомнату();
+  /* 💬 свои слова в чат */
+  { const поле = $('mkn-своё'), кн = $('mkn-послать');
+    const послать = () => { const т = (поле.value || '').trim();
+      if (!т) return; сказать(т); поле.value = ''; };
+    if (кн) кн.onclick = послать;
+    if (поле) поле.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); послать(); } }; }
   { const и = $('mkn-искать'); if (и) и.onclick = искатьКомнаты; }
   { const п = $('mkn-проверка'); if (п) п.onclick = проверитьСвязь; }
+  /* 🔄 ЖАЛОБА МАРКА 19.09: «на ноуте работает, а на телефоне нет» — телефон держал
+     старую офлайн-копию. Эта кнопка сносит её начисто и берёт свежую. */
+  { const о = $('mkn-обновить'); if (о) о.onclick = async () => {
+      состояние('🔄 Сношу старую копию игры…');
+      try { if (window.__forceUpdate) await window.__forceUpdate(); } catch (_) {}
+      try {
+        if ('serviceWorker' in navigator) {
+          const регы = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(регы.map(р => р.unregister()));
+        }
+        if (window.caches) {
+          const имена = await caches.keys();
+          await Promise.all(имена.map(и => caches.delete(и)));
+        }
+      } catch (_) {}
+      состояние('✅ Готово. Перезагружаю свежую версию…');
+      setTimeout(() => { const u = new URL(location.href);
+        u.searchParams.set('свежо', Date.now()); location.replace(u.href); }, 900);
+    }; }
   $('mkn-выйти').onclick = выйти;
   $('mkn-голос').onclick = голос;
   const ссылкаКомнаты = () => ЛОББИ + '?мк=' + encodeURIComponent(код);
