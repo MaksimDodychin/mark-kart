@@ -32923,6 +32923,7 @@ animate();
     box-shadow:0 4px 0 #0007,0 8px 18px #0006;-webkit-tap-highlight-color:transparent}
   .mkl-b:active{transform:translateY(3px);box-shadow:0 1px 0 #0007}
   #mkl-home{background:radial-gradient(circle at 35% 30%,#a855f7,#5b21b6);font-size:20px}
+  #mkl-full{background:radial-gradient(circle at 35% 30%,#38bdf8,#0e5f8f);font-size:19px}
   #mkl-ask{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;
     background:#05060cdd;font-family:system-ui,-apple-system,sans-serif;color:#fff;padding:18px}
   #mkl-ask.mkl-on{display:flex}
@@ -32939,6 +32940,7 @@ animate();
   <div class="mkl-b" id="mkl-home" title="Вернуться в Планету игр">🪐</div>
   <div class="mkl-b" id="mkl-in" title="Приблизить экран">🔍+</div>
   <div class="mkl-b" id="mkl-out" title="Отдалить экран">🔍−</div>
+  <div class="mkl-b" id="mkl-full" title="На весь экран">⛶</div>
 </div>
 <div id="mkl-ask"><div id="mkl-box">
   <h3>🪐 Вернуться в Планету игр?</h3>
@@ -32966,6 +32968,39 @@ animate();
   }
   document.getElementById('mkl-in').onclick  = function(){ зум(+0.15); };
   document.getElementById('mkl-out').onclick = function(){ зум(-0.15); };
+  /* ⛶ НА ВЕСЬ ЭКРАН (заказ Марка 19.09.2026). Работает и как «выйти»: значок меняется.
+     На айфоне обычный fullscreen у Safari запрещён — там честно говорим, что делать. */
+  var кнФулл = document.getElementById('mkl-full');
+  function вПолный(){ return document.fullscreenElement || document.webkitFullscreenElement; }
+  function обновитьФулл(){ кнФулл.textContent = вПолный() ? '⛗' : '⛶';
+    кнФулл.title = вПолный() ? 'Выйти из полного экрана' : 'На весь экран'; }
+  кнФулл.onclick = function(){
+    try {
+      if (вПолный()) {
+        (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      } else {
+        var э = document.documentElement;
+        var f = э.requestFullscreen || э.webkitRequestFullscreen;
+        if (!f) { подсказка(); return; }
+        var р = f.call(э);
+        if (р && р.catch) р.catch(подсказка);
+      }
+    } catch(e){ подсказка(); }
+    setTimeout(обновитьФулл, 250);
+    мигнуть();
+  };
+  function подсказка(){
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:100001;'
+      + 'background:#0b1220ee;color:#7dd3fc;font:800 14px/1.4 system-ui;padding:10px 16px;'
+      + 'border-radius:14px;border:2px solid #7dd3fc55;max-width:90vw;text-align:center';
+    d.textContent = '📱 Здесь полный экран включает сам браузер. Добавь игру на экран «Домой» — и она будет открываться во весь экран всегда.';
+    document.body.appendChild(d);
+    setTimeout(function(){ d.remove(); }, 5200);
+  }
+  document.addEventListener('fullscreenchange', обновитьФулл);
+  document.addEventListener('webkitfullscreenchange', обновитьФулл);
+  обновитьФулл();
   var ask = document.getElementById('mkl-ask');
   document.getElementById('mkl-home').onclick = function(){ ask.classList.add('mkl-on'); };
   document.getElementById('mkl-cancel').onclick = function(){ ask.classList.remove('mkl-on'); };
