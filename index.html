@@ -56,27 +56,29 @@
   .tc[data-key="ArrowUp"]{height:86px;background:linear-gradient(180deg,#7CFC9B99,#18a95f88);}
   .tc[data-key="ArrowDown"]{height:58px;background:linear-gradient(180deg,#ff786688,#c0392b88);}
   .tc:active,.tc.down{transform:translateY(5px);box-shadow:0 3px 0 #0007, inset 0 0 24px #fff4;}
-  /* ═══ 👥 ВДВОЁМ (заказ Марка 12.09.2026) ═══ экран пополам: сверху 1-й, снизу 2-й */
-  #splitLine{position:fixed;left:0;right:0;top:50%;height:4px;margin-top:-2px;z-index:9;
-    background:linear-gradient(90deg,#0000,#ffffffcc,#0000);display:none;pointer-events:none;}
+  /* ═══ 👥 ВДВОЁМ ═══ ПРОСЬБА МАРКА 19.09.2026: делим экран ВЕРТИКАЛЬНО —
+     1-й игрок СЛЕВА, 2-й СПРАВА (раньше было сверху/снизу) */
+  #splitLine{position:fixed;top:0;bottom:0;left:50%;width:4px;margin-left:-2px;z-index:9;
+    background:linear-gradient(180deg,#0000,#ffffffcc,#0000);display:none;pointer-events:none;}
   body.coop.driving #splitLine{display:block;}
   body.coop.driving #touchControls{display:none;}
   body.coop.driving #hud{display:none;}
   #coopPads{position:fixed;inset:0;z-index:9;display:none;pointer-events:none;}
   body.coop.driving #coopPads{display:block;}
-  .cpad{position:absolute;left:max(12px,env(safe-area-inset-left));pointer-events:auto;
+  .cpad{position:absolute;bottom:max(12px,env(safe-area-inset-bottom));pointer-events:auto;
     display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(2,46px);gap:7px;}
-  .cpad.p1{bottom:calc(50% + 10px);} .cpad.p2{bottom:max(12px,env(safe-area-inset-bottom));}
+  .cpad.p1{left:max(12px,env(safe-area-inset-left));}
+  .cpad.p2{left:auto;right:max(12px,env(safe-area-inset-right));}
   .cpad .tc{height:46px;border-radius:15px;font-size:21px;box-shadow:0 5px 0 #0006, inset 0 0 14px #ffffff22;}
   .cpad .up{grid-column:2;grid-row:1;} .cpad .dn{grid-column:2;grid-row:2;}
   .cpad .lf{grid-column:1;grid-row:2;} .cpad .rt{grid-column:3;grid-row:2;}
   #coopHud{position:fixed;inset:0;z-index:8;pointer-events:none;display:none;}
   body.coop.driving #coopHud{display:block;}
-  .chalf{position:absolute;right:max(12px,env(safe-area-inset-right));
+  .chalf{position:absolute;top:max(10px,env(safe-area-inset-top));
     background:#0e1b38cc;border:2px solid #ffffff33;border-radius:12px;padding:5px 11px;
     font-size:15px;font-weight:900;text-shadow:0 2px 0 #0008;white-space:nowrap;}
-  .chalf.p1{top:max(10px,env(safe-area-inset-top));border-color:#7CFC9B88;}
-  .chalf.p2{top:calc(50% + 10px);border-color:#ffd34d88;}
+  .chalf.p1{left:max(12px,env(safe-area-inset-left));border-color:#7CFC9B88;}
+  .chalf.p2{right:max(12px,env(safe-area-inset-right));border-color:#ffd34d88;}
   .screen{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px;overflow:auto;background:radial-gradient(ellipse at center,#0e1b38dd,#05060ccc);}
   .screen.hidden{display:none;}
   h1{font-size:clamp(24px,4vw,46px);text-shadow:0 4px 0 #0007,0 0 24px #4d9fff66;letter-spacing:1px;}
@@ -32615,16 +32617,16 @@ function camFor(P, cam, dt, instant) {
 var _splitSize = new Vector2();
 function renderCoop() {
   renderer.getSize(_splitSize);
-  const w = Math.floor(_splitSize.x), h = Math.floor(_splitSize.y), hh = Math.floor(h / 2);
+  const w = Math.floor(_splitSize.x), h = Math.floor(_splitSize.y), hw = Math.floor(w / 2);
   renderer.setScissorTest(true);
-  renderer.setViewport(0, hh, w, h - hh);
-  renderer.setScissor(0, hh, w, h - hh);
-  camera.aspect = w / (h - hh);
+  renderer.setViewport(0, 0, hw, h);
+  renderer.setScissor(0, 0, hw, h);
+  camera.aspect = hw / h;
   camera.updateProjectionMatrix();
   renderer.render(scene, camera);
-  renderer.setViewport(0, 0, w, hh);
-  renderer.setScissor(0, 0, w, hh);
-  camera2.aspect = w / hh;
+  renderer.setViewport(hw, 0, w - hw, h);
+  renderer.setScissor(hw, 0, w - hw, h);
+  camera2.aspect = (w - hw) / h;
   camera2.updateProjectionMatrix();
   renderer.render(scene, camera2);
   renderer.setScissorTest(false);
@@ -33054,6 +33056,8 @@ animate();
   #mkn-игрыряд button { font:800 12px/1.25 inherit; padding:9px 6px; border-radius:11px; cursor:pointer;
     border:1.5px solid #ffffff26; background:#ffffff12; color:#dbe7ff; }
   #mkn-игрыряд button:active { transform:translateY(2px); }
+  #mkn-гонка { background:#123027; border:2px solid #34d39955; border-radius:14px; padding:10px;
+    margin-bottom:10px; font-size:14px; line-height:1.5; }
   #mkn-вечь { background:#2a1f45; border:2px solid #a855f755; border-radius:14px; padding:10px;
     margin-bottom:8px; text-align:center; font-size:14px; }
   .mkn-сост { font-size:13px; opacity:.8; text-align:center; margin-top:6px; min-height:18px; }
@@ -33089,6 +33093,31 @@ animate();
     <div class="mkn-х" id="mkn-закрыть">✖️</div>
   </div>
 
+  <div class="mkn-карта" id="mkn-начало">
+    <h3>👥 Играть вместе</h3>
+    <button class="mkn-кн mkn-зел" id="mkn-создать">🏠 СОЗДАТЬ КОМНАТУ</button>
+    <div class="mkn-под" style="margin:4px 0 8px">Код придумается сам — его и скажешь друзьям.</div>
+    <input id="mkn-поле" maxlength="5" placeholder="КОД ДРУГА (5 русских букв)">
+    <div class="mkn-под" style="margin:4px 0 8px">Буквы <b>русские</b>. Вписал свой код — им и откроется твоя комната.</div>
+    <button class="mkn-кн" id="mkn-войти">🚪 ВОЙТИ ПО КОДУ</button>
+    <div style="height:8px"></div>
+    <button class="mkn-кн mkn-сер" id="mkn-искать">🔍 НАЙТИ ЧУЖИЕ КОМНАТЫ</button>
+    <div id="mkn-списокКомнат"></div>
+    <button class="mkn-кн mkn-сер" id="mkn-проверка" style="margin-top:6px">🩺 ПРОВЕРИТЬ СВЯЗЬ</button>
+    <div class="mkn-сост" id="mkn-сост"></div>
+    <details id="mkn-настройки" style="margin-top:10px">
+      <summary style="cursor:pointer;font-weight:900;padding:6px 0">⚙️ Настройки комнаты</summary>
+      <div class="mkn-под">Сколько нас будет?</div>
+      <div id="mkn-сколько"></div>
+      <div class="mkn-под" style="margin-top:8px">Как играем?</div>
+      <div id="mkn-режимы"></div>
+      <div class="mkn-под" style="margin-top:8px">Кто будет охотником в догонялках?</div>
+      <div id="mkn-охотник"></div>
+      <div class="mkn-под" style="margin-top:8px">Во что можно играть в этой комнате?</div>
+      <div id="mkn-выборИгр"></div>
+    </details>
+  </div>
+
   <div class="mkn-карта" id="mkn-профиль">
     <h3>🧑‍🚀 Кто ты</h3>
     <input id="mkn-имяполе" maxlength="18" placeholder="Твоё имя">
@@ -33100,20 +33129,6 @@ animate();
     <button class="mkn-кн mkn-зел" id="mkn-сохранить">✅ СОХРАНИТЬ</button>
   </div>
 
-  <div class="mkn-карта" id="mkn-начало">
-    <h3>👥 Играть вместе</h3>
-    <div class="mkn-под">Сколько нас будет?</div>
-    <div id="mkn-сколько"></div>
-    <div class="mkn-под" style="margin-top:8px">Во что можно играть в этой комнате?</div>
-    <div id="mkn-выборИгр"></div>
-    <div style="height:10px"></div>
-    <button class="mkn-кн mkn-зел" id="mkn-создать">🏠 СОЗДАТЬ КОМНАТУ</button>
-    <div style="height:6px"></div>
-    <input id="mkn-поле" maxlength="5" placeholder="КОД">
-    <div style="height:8px"></div>
-    <button class="mkn-кн" id="mkn-войти">🚪 ВОЙТИ ПО КОДУ</button>
-    <div class="mkn-сост" id="mkn-сост"></div>
-  </div>
 
   <div class="mkn-карта" id="mkn-комната" style="display:none">
     <h3>🏠 Комната</h3>
@@ -33138,6 +33153,7 @@ animate();
       <div id="mkn-игрыряд"></div>
       <button class="mkn-кн mkn-зел" id="mkn-вечеринка" style="margin-top:8px">🎉 ВЕЧЕРИНКА ИЗ ТРЁХ ИГР</button>
     </div>
+    <div id="mkn-гонка" style="display:none"></div>
     <div id="mkn-вечь" style="display:none"></div>
     <div class="mkn-ряд">
       <button class="mkn-кн mkn-сер" id="mkn-голос">🎙 ПОЗВАТЬ ГОЛОСОМ</button>
@@ -33252,6 +33268,23 @@ animate();
     '⏳ Подожди чуть-чуть', '😂 Ха-ха!', '😱 Ой, страшно!', '👍 Хорошо', '👎 Не хочу',
     '🏆 Я выиграл!', '😅 Ты меня обогнал', '🔁 Давай ещё раз', '🎙 Включи микрофон',
     '👀 Я тебя вижу', '🆘 Помоги!', '💤 Я устал, пока!',
+    /* ── фразы, которые надиктовал Марк 19.09.2026 ── */
+    '🎮 Привет, в какую игру будем играть?',
+    '🧹 Битва пылесосов — моя любимая игра',
+    '🏁 Гонки пылесосов — самая лучшая',
+    '🕷 Самая жуткая — Паучий лабиринт',
+    '🌙 Нет, самая жуткая — Ночная смена!',
+    '😱 Давай во что-нибудь жуткое',
+    '😌 Давай во что-нибудь не страшное',
+    '👻 Я играл в Жизнь призрака, там жутко',
+    '🪐 Пойдём на Эмоциональную планету',
+    '⛰ Я досидел на Горе тревожности!',
+    '🌫 Кто хочет побыть пылесосом?',
+    '🎲 Давай выберем игру случайно',
+    '🤝 Давай вдвоём на одном экране',
+    '📴 У меня связь пропала, погоди',
+    '🔁 Ещё разок, я почти выиграл',
+    '😈 Я буду охотником!',
   ];
 
   /* ── СОСТОЯНИЕ СЕТИ ── */
@@ -33356,6 +33389,7 @@ animate();
       мойИд = ид; игроки = [{ ид, имя:профиль.имя, ава:профиль.ава, хозяин:true }];
       показатьКомнату(); состояние('Комната открыта. Диктуй код!');
       обновитьМини();
+      объявитьКомнату();          // 🔍 чтобы друзья нашли её в списке открытых комнат
     });
     peer.on('connection', c => {
       if (игроки.length >= настройки.макс) {        // комната полна — вежливо отказываем
@@ -33365,7 +33399,7 @@ animate();
       }
       связи.push(c);
       c.on('open', () => {
-        c.send({ т:'привет', игроки, хозяин:{ имя:профиль.имя, ава:профиль.ава }, настройки });
+        c.send({ т:'привет', игроки, хозяин:{ имя:профиль.имя, ава:профиль.ава }, настройки, гонка });
       });
       c.on('data', d => приняли(d, c));
       c.on('close', () => { связи = связи.filter(x => x !== c);
@@ -33429,6 +33463,7 @@ animate();
       'Попроси хозяина освободить место.', true); выйти(); return; }
     if (d.т === 'привет') { игроки = d.игроки.concat([{ ид:мойИд, имя:профиль.имя, ава:профиль.ава }]);
       if (d.настройки) { настройки = d.настройки; рисоватьВыборИгр(); показатьКтоМожет(); }
+      if (d.гонка !== undefined) { гонка = d.гонка; сохранитьГонку(); показатьГонку(); }
       рисоватьИгроков(); if (d.хозяин) запомнитьДруга(d.хозяин); return; }
     if (d.т === 'люди') { игроки = d.игроки; рисоватьИгроков(); return; }
     if (d.т === 'чат') { чатСтрока(d.сист ? 'система' : d.имя, d.текст);
@@ -33445,7 +33480,9 @@ animate();
       return;
     }
     if (d.т === 'вечеринка') { вечеринка = d.в; показатьВечеринку(); return; }
-    if (d.т === 'идём') { перейтиВИгру(d.url, false); return; }
+    if (d.т === 'гонка') { гонка = d.г; сохранитьГонку(); показатьГонку(); рисоватьВыборИгр(); return; }
+    if (d.т === 'прошёл') { if (хозяин) отметитьПрошедшего(откуда.peer, d.имя); return; }
+    if (d.т === 'идём') { перейтиВИгру(d.url, false, d.охотник); return; }
     if (d.т === 'старт') { слушатели.старт.forEach(f => f(d)); return; }
     if (d.т === 'игра') {
       if (хозяин) разослать(d, откуда);           // хозяин пересылает остальным
@@ -33501,16 +33538,133 @@ animate();
   /* ── ПЕРЕХОД «ИДЁМ ИГРАТЬ ВМЕСТЕ» ──
      Связь не переживает переход на другую страницу, поэтому договариваемся
      кодом: все уходят по адресу с ?мк=КОД и там автоматически снова находятся. */
-  function позватьВИгру(url) {
+  /* 🕷 КТО ОХОТНИК. Либо случайный игрок, либо тот, кого назначил хозяин
+     (заказ Марка 19.09.2026). Если назначенный вышел — берём случайного. */
+  function выбратьОхотника() {
+    if (!игроки.length) return '';
+    if (настройки.охотник !== 'случайно' && игроки.some(г => г.ид === настройки.охотник))
+      return настройки.охотник;
+    return игроки[Math.floor(Math.random()*игроки.length)].ид;
+  }
+  function позватьВИгру(url, gid) {
     if (!peer) { пузырь('Сначала создай комнату'); return; }
     if (!хозяин) { пузырь('Позвать в игру может только хозяин комнаты'); return; }
-    разослать({ т:'идём', url });
-    setTimeout(() => перейтиВИгру(url, true), 600);
+    let охотник = '';
+    if (gid && ДОГОНЯЛКИ[gid]) {
+      охотник = выбратьОхотника();
+      const кто = игроки.find(г => г.ид === охотник);
+      if (кто) пузырь('🕷 Охотник — ' + кто.имя + ' (' + ДОГОНЯЛКИ[gid].роль + ')', 5);
+    }
+    разослать({ т:'идём', url, охотник });
+    setTimeout(() => перейтиВИгру(url, true, охотник), 600);
   }
-  function перейтиВИгру(url, яХозяин) {
-    const р = url + (url.includes('?') ? '&' : '?') + 'мк=' + encodeURIComponent(код) +
+  function перейтиВИгру(url, яХозяин, охотник) {
+    let р = url + (url.includes('?') ? '&' : '?') + 'мк=' + encodeURIComponent(код) +
       (яХозяин ? '&хоз=1' : '');
+    if (охотник) р += '&роль=' + (охотник === мойИд ? 'охотник' : 'беглец');
     location.href = р;
+  }
+
+  /* ═══════════ 🔍 ДОСКА ОТКРЫТЫХ КОМНАТ (заказ Марка 19.09.2026) ═══════════
+     «Он может найти другие комнаты, не только какую-то определённую».
+     Своего сервера у нас нет, поэтому доской работает ОДИН из игроков:
+     кто первым занял особый адрес — тот и держит список. Комнаты сами
+     представляются доске, а тот, кто ищет, у неё спрашивает.
+     ⚠️ Честное ограничение: если держатель доски вышел из сети, список
+     временно пустеет, пока его не займёт кто-то другой. */
+  const ИД_ДОСКИ = 'mkroom-doska-mark-planeta';
+  let доска = null, доскаПир = null, объявТаймер = null;
+
+  function занятьДоску() {                       // доски нет — становимся ею сами
+    if (доска) return;
+    try {
+      const d = new Peer(ИД_ДОСКИ, { debug:0 });
+      const комнаты = {};
+      d.on('open', () => { доска = d; });
+      d.on('error', () => { try { d.destroy(); } catch (_) {} if (доска === d) доска = null; });
+      d.on('connection', c => {
+        c.on('data', м => {
+          if (!м || !м.т) return;
+          if (м.т === 'комната') комнаты[м.код] = Object.assign({}, м, { когда:Date.now() });
+          if (м.т === 'закрылась') delete комнаты[м.код];
+          if (м.т === 'дай') {
+            const сейчас = Date.now();
+            const список = Object.values(комнаты).filter(к => сейчас - к.когда < 150000);
+            try { c.send({ т:'комнаты', список }); } catch (_) {}
+          }
+        });
+      });
+    } catch (_) { доска = null; }
+  }
+  /* один разговор с доской: что бы мы ни хотели — сказать о себе или спросить список */
+  async function кДоске(весть, ответ, нет) {
+    try { await загрузитьPeer(); } catch (_) { if (нет) нет('нет связи'); return; }
+    let готово = false;
+    try {
+      const p2 = доскаПир && !доскаПир.destroyed ? доскаПир : (доскаПир = new Peer({ debug:0 }));
+      const пуск = () => {
+        const c = p2.connect(ИД_ДОСКИ, { reliable:true });
+        c.on('open', () => { готово = true; try { c.send(весть); } catch (_) {}
+          if (!ответ) setTimeout(() => { try { c.close(); } catch (_) {} }, 800); });
+        c.on('data', м => { if (ответ) { ответ(м); try { c.close(); } catch (_) {} } });
+        c.on('error', () => {});
+        setTimeout(() => { if (!готово) { занятьДоску(); if (нет) нет('доски не было — занял сам'); } }, 4500);
+      };
+      if (p2.open) пуск(); else p2.on('open', пуск);
+      p2.on('error', () => { if (!готово && нет) нет('связь с доской не вышла'); });
+    } catch (_) { if (нет) нет('связь с доской не вышла'); }
+  }
+  function объявитьКомнату() {                   // хозяин рассказывает доске о своей комнате
+    if (!хозяин || !код) return;
+    кДоске({ т:'комната', код, имя:профиль.имя, мест:настройки.макс,
+             людей:игроки.length, режим:настройки.режим });
+    clearInterval(объявТаймер);
+    объявТаймер = setInterval(() => { if (хозяин && код) объявитьКомнату(); }, 60000);
+  }
+  function искатьКомнаты() {
+    const с = $('mkn-списокКомнат'); if (!с) return;
+    с.innerHTML = '<div class="mkn-под">🔍 Ищу открытые комнаты…</div>';
+    кДоске({ т:'дай' }, м => {
+      const список = (м && м.список || []).filter(к => к.код !== код);
+      if (!список.length) { с.innerHTML =
+        '<div class="mkn-под">Пока никого не видно. Можно войти по коду, который скажет друг.</div>'; return; }
+      с.innerHTML = '';
+      список.forEach(к => {
+        const b = document.createElement('button');
+        b.className = 'mkn-кн mkn-сер'; b.style.marginTop = '6px';
+        b.innerHTML = '🚪 ' + к.код + ' · у ' + (к.имя || 'кого-то') +
+          ' · ' + (к.людей || 1) + ' из ' + (к.мест || 4);
+        b.onclick = () => войтиВКомнату(к.код);
+        с.appendChild(b);
+      });
+    }, почему => { с.innerHTML = '<div class="mkn-под">😕 ' + почему +
+      '. Попробуй ещё раз или войди по коду друга.</div>'; });
+  }
+
+  /* ═══════════ 🩺 ПРОВЕРКА СВЯЗИ ═══════════
+     Чтобы не гадать «почему не работает», игра проверяет себя сама и отвечает словами. */
+  async function проверитьСвязь() {
+    const стр = [];
+    const пиши = () => состояние(стр.join('  ·  '));
+    стр.push('🧾 версия ' + (window.__APP_VER || '?')); пиши();
+    стр.push(navigator.onLine ? '📶 интернет есть' : '📴 интернета НЕТ'); пиши();
+    try { await загрузитьPeer(); стр.push('🔌 движок связи на месте'); }
+    catch (_) { стр.push('❌ движок связи не скачался'); пиши(); return; }
+    пиши();
+    await new Promise(готово => {
+      let всё = false;
+      const срок = setTimeout(() => { if (!всё) { всё = true;
+        стр.push('❌ сервер комнат не ответил'); пиши(); готово(); } }, 9000);
+      try {
+        const пробный = new Peer({ debug:0 });
+        пробный.on('open', () => { if (всё) return; всё = true; clearTimeout(срок);
+          стр.push('✅ сервер комнат отвечает — комнату создать можно');
+          try { пробный.destroy(); } catch (_) {} пиши(); готово(); });
+        пробный.on('error', e => { if (всё) return; всё = true; clearTimeout(срок);
+          стр.push('❌ сервер комнат ругается: ' + (e.type || e.message)); пиши(); готово(); });
+      } catch (_) { if (!всё) { всё = true; clearTimeout(срок);
+        стр.push('❌ не удалось даже начать'); пиши(); готово(); } }
+    });
   }
 
   /* ── ДРУЗЬЯ ── */
@@ -33538,6 +33692,9 @@ animate();
 
   /* ── ЭКРАНЫ ── */
   function рисоватьИгроков() {
+    /* ⚠️ список «кто охотник» надо обновлять при каждом изменении состава,
+       иначе там навсегда остаётся один «🎲 Случайный» (найдено тестом 19.09). */
+    рисоватьНастройки();
     const с = $('mkn-список'); if (!с) return;
     с.innerHTML = '';
     игроки.forEach(г => {
@@ -33639,19 +33796,62 @@ animate();
   let вечеринка = null;
   try { вечеринка = JSON.parse(localStorage.getItem('мк-вечеринка') || 'null'); } catch (_) {}
   /* 🛠 настройки комнаты (заказ Марка): сколько игроков и во что можно играть */
-  let настройки = { макс:4, игры:СПИСОК.map(и => и.id) };
+  /* 🕷 ДОГОНЯЛКИ (заказ Марка 19.09.2026): игры, где кто-то один — охотник,
+     а остальные убегают. В этих играх уже есть режим «за паука / за пылесос / за робота». */
+  const ДОГОНЯЛКИ = {
+    spider:    { роль:'🕷 Паук',          беглец:'🐞 жучок' },
+    dustmaze:  { роль:'🤖 Робот-пылесос',  беглец:'🌫 пылинка' },
+    nightshift:{ роль:'🤖 Робот-Дефект',   беглец:'🧍 охранник' },
+  };
+  /* 🎮 РЕЖИМЫ КОМНАТЫ (заказ Марка 19.09.2026) */
+  const РЕЖИМЫ = [
+    { id:'обычный', имя:'🎮 Просто играем', под:'хозяин выбирает игру, когда захочет' },
+    { id:'забег',   имя:'⚡ Молниеносный забег', под:'проходим игры одну за другой из списка' },
+    { id:'одна',    имя:'🏆 Одна игра до победителя', под:'играем одну, пока все не пройдут' },
+  ];
+  let настройки = { макс:4, игры:СПИСОК.map(и => и.id), режим:'обычный', охотник:'случайно' };
   try { const н = JSON.parse(localStorage.getItem('мк-комната') || 'null');
-    if (н && н.игры && н.игры.length) настройки = н; } catch (_) {}
+    if (н && н.игры && н.игры.length) настройки = Object.assign(
+      { макс:4, игры:СПИСОК.map(и => и.id), режим:'обычный', охотник:'случайно' }, н); } catch (_) {}
   const сохранитьНастройки = () => { try { localStorage.setItem('мк-комната', JSON.stringify(настройки)); } catch (_) {} };
   function рисоватьНастройки() {
     const с = $('mkn-сколько'); if (!с) return;
     с.innerHTML = '';
-    [2, 3, 4, 6, 8].forEach(n => {
+    [2, 3, 4, 6, 8, 10, 12].forEach(n => {   // 👥 Марк попросил больше семи (19.09.2026)
       const b = document.createElement('button'); b.textContent = n + ' 👤';
       if (n === настройки.макс) b.className = 'mkn-выбр';
       b.onclick = () => { настройки.макс = n; сохранитьНастройки(); рисоватьНастройки(); };
       с.appendChild(b);
     });
+    /* 🎮 режим комнаты */
+    const рж = $('mkn-режимы');
+    if (рж) {
+      рж.innerHTML = '';
+      РЕЖИМЫ.forEach(р => {
+        const b = document.createElement('button');
+        b.innerHTML = р.имя + '<br><span style="opacity:.6;font-weight:700">' + р.под + '</span>';
+        if (р.id === настройки.режим) b.className = 'mkn-выбр';
+        b.onclick = () => { настройки.режим = р.id; сохранитьНастройки(); рисоватьНастройки();
+          рисоватьВыборИгр(); }; 
+        рж.appendChild(b);
+      });
+    }
+    /* 🕷 кто охотник в догонялках */
+    const ох = $('mkn-охотник');
+    if (ох) {
+      ох.innerHTML = '';
+      const вар = [{ ид:'случайно', имя:'🎲 Случайный' }].concat(
+        игроки.map(г => ({ ид:г.ид, имя:'🙂 ' + г.имя })));
+      вар.forEach(в => {
+        const b = document.createElement('button');
+        b.textContent = в.имя;
+        if (в.ид === настройки.охотник) b.className = 'mkn-выбр';
+        b.onclick = () => { настройки.охотник = в.ид; сохранитьНастройки(); рисоватьНастройки(); };
+        ох.appendChild(b);
+      });
+      if (!игроки.length) ох.innerHTML +=
+        '<div class="mkn-под">Создай комнату — и сможешь назначить охотника поимённо.</div>';
+    }
     const и = $('mkn-выборИгр'); и.innerHTML = '';
     СПИСОК.forEach(g => {
       const b = document.createElement('button');
@@ -33825,15 +34025,108 @@ animate();
   }
   requestAnimationFrame(цикл);
 
+  /* ═══ ⚡ ГОНКА: два режима комнаты (заказ Марка 19.09.2026) ═══
+     «Молниеносный забег» — игры одна за другой из списка комнаты.
+     «Одна игра до победителя» — играем одну, пока все не пройдут.
+     Кто прошёл — жмёт «🏁 Я ПРОШЁЛ», и порядок финиша виден всем. */
+  let гонка = null;
+  try { гонка = JSON.parse(localStorage.getItem('мк-гонка') || 'null'); } catch (_) {}
+  const сохранитьГонку = () => { try {
+    localStorage.setItem('мк-гонка', JSON.stringify(гонка)); } catch (_) {} };
+  const имяИгры = id => { const и = СПИСОК.find(x => x.id === id); return и ? и.em + ' ' + и.имя : id; };
+  function начатьГонку(одна) {
+    const список = одна ? [одна] : настройки.игры.slice().sort(() => Math.random() - 0.5);
+    if (!список.length) { пузырь('Сначала выбери игры в настройках комнаты', 4); return; }
+    гонка = { режим: одна ? 'одна' : 'забег', игры:список, шаг:0, прошли:[], порядок:[], кончилась:false };
+    сохранитьГонку(); разослать({ т:'гонка', г:гонка }); показатьГонку();
+    пузырь(одна ? '🏆 Играем до победителя: ' + имяИгры(одна)
+                : '⚡ Забег: ' + список.map(имяИгры).join(' → '), 6);
+    setTimeout(() => позватьВИгру(адресИгры(список[0]), список[0]), 1600);
+  }
+  function яПрошёл() {
+    if (!гонка || гонка.кончилась) return;
+    if (гонка.прошли.includes(мойИд)) { пузырь('Ты уже отметился 🙂', 2.5); return; }
+    if (хозяин) отметитьПрошедшего(мойИд, профиль.имя);
+    else разослать({ т:'прошёл', имя:профиль.имя });
+    пузырь('🏁 Записал: ты прошёл', 3);
+  }
+  function отметитьПрошедшего(ид, имя) {
+    if (!гонка || гонка.кончилась || гонка.прошли.includes(ид)) return;
+    гонка.прошли.push(ид); гонка.порядок.push(имя);
+    const текст = '🏁 ' + имя + ' прошёл (' + гонка.прошли.length + ' из ' + Math.max(1, игроки.length) + ')';
+    чатСтрока('система', текст); разослать({ т:'чат', имя:'', текст, сист:true });
+    сохранитьГонку(); разослать({ т:'гонка', г:гонка }); показатьГонку();
+    if (гонка.прошли.length >= Math.max(1, игроки.length)) завершитьЭтап();
+  }
+  function завершитьЭтап() {
+    const итог = '🏆 Все прошли! Порядок: ' + гонка.порядок.join(' → ');
+    чатСтрока('система', итог); разослать({ т:'чат', имя:'', текст:итог, сист:true });
+    гонка.шаг++;
+    if (гонка.режим === 'одна' || гонка.шаг >= гонка.игры.length) {
+      гонка.кончилась = true; гонка.победитель = гонка.порядок[0] || '';
+      сохранитьГонку(); разослать({ т:'гонка', г:гонка }); показатьГонку();
+      пузырь('🏆 Победитель — ' + (гонка.победитель || 'все сразу') + '!', 7);
+      return;
+    }
+    гонка.прошли = []; гонка.порядок = [];
+    сохранитьГонку(); разослать({ т:'гонка', г:гонка }); показатьГонку();
+    пузырь('▶️ Дальше: ' + имяИгры(гонка.игры[гонка.шаг]), 5);
+  }
+  function показатьГонку() {
+    const э = $('mkn-гонка'); if (!э) return;
+    if (!гонка) { э.style.display = 'none'; return; }
+    э.style.display = 'block';
+    const шапка = гонка.режим === 'забег' ? '⚡ <b>Молниеносный забег</b>' : '🏆 <b>До победителя</b>';
+    const путь = гонка.игры.map((g, i) => {
+      const н = имяИгры(g);
+      return i < гонка.шаг ? '<s style="opacity:.5">' + н + '</s>'
+           : i === гонка.шаг ? '<b>' + н + '</b>' : н;
+    }).join(' → ');
+    let низ = '';
+    if (гонка.кончилась) {
+      низ = '<div style="margin-top:6px">🏆 <b>Победитель — ' +
+        (гонка.победитель || 'все сразу') + '</b></div>';
+      if (хозяин) низ += '<button class="mkn-кн mkn-сер" id="mkn-гонкаСброс" style="margin-top:8px">🔁 НАЧАТЬ ЗАНОВО</button>';
+    } else {
+      низ = '<div class="mkn-под" style="margin-top:6px">Прошли: ' +
+        (гонка.порядок.length ? гонка.порядок.join(', ') : 'пока никто') +
+        ' · ' + гонка.прошли.length + ' из ' + Math.max(1, игроки.length) + '</div>' +
+        '<button class="mkn-кн mkn-зел" id="mkn-япрошёл" style="margin-top:8px">🏁 Я ПРОШЁЛ</button>';
+      if (хозяин) низ += '<button class="mkn-кн mkn-сер" id="mkn-этапДальше" style="margin-top:6px">▶️ ИГРАЕМ: ' +
+        имяИгры(гонка.игры[Math.min(гонка.шаг, гонка.игры.length - 1)]) + '</button>';
+    }
+    э.innerHTML = шапка + '<br>' + путь + низ;
+    const a = document.getElementById('mkn-япрошёл'); if (a) a.onclick = яПрошёл;
+    const b = document.getElementById('mkn-этапДальше');
+    if (b) b.onclick = () => { const g = гонка.игры[Math.min(гонка.шаг, гонка.игры.length - 1)];
+      позватьВИгру(адресИгры(g), g); };
+    const c = document.getElementById('mkn-гонкаСброс');
+    if (c) c.onclick = () => { гонка = null; сохранитьГонку();
+      разослать({ т:'гонка', г:null }); показатьГонку(); рисоватьВыборИгр(); };
+  }
+
   /* ── выбор игры и вечеринка ── */
   function рисоватьВыборИгр() {
     $('mkn-выбор').style.display = хозяин ? 'block' : 'none';
+    показатьГонку();
     const р = $('mkn-игрыряд'); if (!р || !хозяин) return;
     р.innerHTML = '';
+    if (настройки.режим === 'забег') {          // ⚡ один большой пуск на весь список
+      const b = document.createElement('button');
+      b.style.gridColumn = '1 / -1';
+      b.innerHTML = '⚡<br>НАЧАТЬ МОЛНИЕНОСНЫЙ ЗАБЕГ<br><span style="opacity:.6">игр в забеге: ' +
+        настройки.игры.length + '</span>';
+      b.onclick = () => начатьГонку(null);
+      р.appendChild(b);
+      return;
+    }
     СПИСОК.filter(и => настройки.игры.includes(и.id)).forEach(и => {
       const b = document.createElement('button');
-      b.innerHTML = и.em + '<br>' + и.имя + (и.вместе ? '' : '<br><span style="opacity:.6">по очереди</span>');
-      b.onclick = () => позватьВИгру(адресИгры(и.id));
+      const хвост = ДОГОНЯЛКИ[и.id] ? '<br><span style="opacity:.6">🕷 с охотником</span>'
+                  : (и.вместе ? '' : '<br><span style="opacity:.6">по очереди</span>');
+      b.innerHTML = и.em + '<br>' + и.имя + хвост;
+      b.onclick = () => (настройки.режим === 'одна' ? начатьГонку(и.id)
+                                                    : позватьВИгру(адресИгры(и.id), и.id));
       р.appendChild(b);
     });
   }
@@ -33844,7 +34137,7 @@ animate();
     разослать({ т:'вечеринка', в:вечеринка });
     показатьВечеринку();
     пузырь('🎉 Вечеринка: ' + вечеринка.имена.join(' → '), 5);
-    setTimeout(() => позватьВИгру(адресИгры(вечеринка.игры[0])), 1500);
+    setTimeout(() => позватьВИгру(адресИгры(вечеринка.игры[0]), вечеринка.игры[0]), 1500);
   }
   function сохранитьВечеринку() {
     try { localStorage.setItem('мк-вечеринка', JSON.stringify(вечеринка)); } catch (_) {}
@@ -33862,7 +34155,8 @@ animate();
         : (хозяин ? '<br><button class="mkn-кн mkn-зел" id="mkn-дальше" style="margin-top:8px">▶️ ИГРА ' +
             (вечеринка.шаг + 1) + ' ИЗ ' + вечеринка.игры.length + '</button>' : ''));
     const к = document.getElementById('mkn-дальше');
-    if (к) к.onclick = () => позватьВИгру(адресИгры(вечеринка.игры[вечеринка.шаг]));
+    if (к) к.onclick = () => позватьВИгру(адресИгры(вечеринка.игры[вечеринка.шаг]),
+      вечеринка.игры[вечеринка.шаг]);
   }
   /* вернулись в лобби после игры — двигаем вечеринку на шаг вперёд */
   (function шагВечеринки() {
@@ -33883,8 +34177,16 @@ animate();
     $('mkn-моёимя').textContent = и; рисоватьАву($('mkn-мояава'), профиль.ава);
     пузырь('✅ Сохранил: ' + и);
   };
-  $('mkn-создать').onclick = () => создатьКомнату();
+  /* 🏠 если Марк вписал свой код — создаём комнату ИМЕННО с ним, а не со случайным */
+  $('mkn-создать').onclick = () => {
+    const свой = ($('mkn-поле').value || '').toUpperCase().replace(/[^А-ЯЁ]/g, '').slice(0, 5);
+    if (свой && свой.length !== 5)
+      пузырь('Код — ровно 5 русских букв. Или оставь поле пустым, код придумается сам', 5);
+    создатьКомнату(свой.length === 5 ? свой : undefined);
+  };
   $('mkn-войти').onclick = () => войтиВКомнату();
+  { const и = $('mkn-искать'); if (и) и.onclick = искатьКомнаты; }
+  { const п = $('mkn-проверка'); if (п) п.onclick = проверитьСвязь; }
   $('mkn-выйти').onclick = выйти;
   $('mkn-голос').onclick = голос;
   const ссылкаКомнаты = () => ЛОББИ + '?мк=' + encodeURIComponent(код);
