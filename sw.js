@@ -1,11 +1,15 @@
-// service worker (версия по содержимому: 719aa98a28)
+// service worker (версия по содержимому: f077a1477a)
 // страница игры — network-first (всегда свежая при интернете), офлайн — из кэша.
-const CACHE = 'mark-kart-719aa98a28';
+const CACHE = 'mark-kart-f077a1477a';
 const ASSETS = ['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./icon-512-maskable.png','./apple-touch-icon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(u => new Request(u, {cache:'reload'})))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => {
   e.waitUntil((async () => {
     const ks = await caches.keys();
+    // ⚠️ ЖАЛОБА МАРКА 19.09.2026: при ПЕРВОМ заходе воркер перезагружал страницу
+    //    на адрес ?v=…, и всё, что человек успел сделать (например, создал комнату),
+    //    пропадало. Перезагружаем окна ТОЛЬКО если правда заменили старую версию.
+    const былаСтарая = ks.some(k => k.startsWith('mark-kart-') && k !== CACHE);
     await Promise.all(ks.filter(k => k.startsWith('mark-kart-') && k !== CACHE).map(k => caches.delete(k)));
     await self.clients.claim();
     // 🔄 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ СТАРЫХ КОПИЙ.
@@ -13,12 +17,12 @@ self.addEventListener('activate', e => {
     // скачивает свежий sw.js при заходе. Новый воркер сам перезагружает открытые окна
     // на свежий адрес — и застрявшая версия обновляется без всяких кнопок (Марк, 23.08).
     try {
-      const окна = await self.clients.matchAll({ type: 'window' });
+      const окна = былаСтарая ? await self.clients.matchAll({ type: 'window' }) : [];
       for (const w of окна) {
         if (!w.url.startsWith(self.registration.scope)) continue;
         const адрес = new URL(w.url);
-        if (адрес.searchParams.get('v') === '719aa98a28') continue;
-        адрес.searchParams.set('v','719aa98a28');
+        if (адрес.searchParams.get('v') === 'f077a1477a') continue;
+        адрес.searchParams.set('v','f077a1477a');
         w.navigate(адрес.href).catch(() => {});
       }
     } catch (_) {}
