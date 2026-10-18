@@ -1,6 +1,6 @@
-// service worker (версия по содержимому: a00368c29d)
+// service worker (версия по содержимому: 3950b7335a)
 // страница игры — network-first (всегда свежая при интернете), офлайн — из кэша.
-const CACHE = 'mark-kart-a00368c29d';
+const CACHE = 'mark-kart-3950b7335a';
 const ASSETS = ['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./icon-512-maskable.png','./apple-touch-icon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(u => new Request(u, {cache:'reload'})))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => {
@@ -21,8 +21,8 @@ self.addEventListener('activate', e => {
       for (const w of окна) {
         if (!w.url.startsWith(self.registration.scope)) continue;
         const адрес = new URL(w.url);
-        if (адрес.searchParams.get('v') === 'a00368c29d') continue;
-        адрес.searchParams.set('v','a00368c29d');
+        if (адрес.searchParams.get('v') === '3950b7335a') continue;
+        адрес.searchParams.set('v','3950b7335a');
         w.navigate(адрес.href).catch(() => {});
       }
     } catch (_) {}
