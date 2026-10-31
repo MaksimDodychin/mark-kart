@@ -29902,7 +29902,7 @@ function buildWasher(color) {
   const g = new Group();
   const bodyM = plastic(color);
   const head = new Mesh(new BoxGeometry(1.5, 0.3, 0.9), plastic(2895672));
-  head.position.set(0, 0.2, -0.02);
+  head.position.set(0, 0.2, -0.55);
   head.castShadow = true;
   g.add(head);
   const tubo = new Mesh(new CylinderGeometry(0.16, 0.16, 2, 14), metal(13620445));
@@ -29918,26 +29918,26 @@ function buildWasher(color) {
   tankDirty.rotation.x = -0.4;
   g.add(tankDirty);
   const motor = new Mesh(new SphereGeometry(0.32, 20, 18), bodyM);
-  motor.position.set(0, 2.04, -0.17);
+  motor.position.set(0, 1.95, 0.3);
   motor.castShadow = true;
   g.add(motor);
   const handle = new Mesh(new TorusGeometry(0.28, 0.06, 10, 22), bodyM);
-  handle.position.set(0, 2.34, 0.14);
+  handle.position.set(0, 2.4, 0.6);
   handle.rotation.y = Math.PI / 2;
   g.add(handle);
   [-0.4, 0, 0.4].forEach((x) => {
     const dr = new Mesh(new SphereGeometry(0.08, 8, 8), glass(6733823));
-    dr.position.set(x, 0.1, -0.57);
+    dr.position.set(x, 0.1, -1.1);
     g.add(dr);
   });
   const led = new Mesh(new BoxGeometry(0.6, 0.1, 0.05), emissive(3531007, 1.2));
-  led.position.set(0, 0.25, -0.485);
+  led.position.set(0, 0.55, -0.86);
   g.add(led);
   const fl2 = flag(color);
-  fl2.position.set(-0.3, 1, -0.18);
+  fl2.position.set(0, 0.3, 0.7);
   g.add(fl2);
   g.userData.spin = [];
-  vacuumWheels(g, 0.7, 0.2, 0.17);
+  vacuumWheels(g, 0.7, -0.33, 0.17);
   return g;
 }
 function makeBricks() {
