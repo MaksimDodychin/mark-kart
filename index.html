@@ -27931,6 +27931,29 @@ function vacuumJoint(g, a, b, r, material) {
   g.add(m);
   return m;
 }
+function vacuumWheels(g, halfTrack, z, r = 0.17) {
+  vacuumJoint(g, [-halfTrack, r, z], [halfTrack, r, z], 0.045, metal(9279655));
+  const wheels = [];
+  for (const side of [-1, 1]) {
+    const wheel = new Group();
+    wheel.name = "\u041A\u043E\u043B\u0435\u0441\u043E \u043F\u044B\u043B\u0435\u0441\u043E\u0441\u0430";
+    wheel.position.set(side * halfTrack, r, z);
+    const tire = new Mesh(new CylinderGeometry(r, r, 0.18, 24), plastic(2106412));
+    tire.rotation.z = Math.PI / 2;
+    tire.castShadow = true;
+    wheel.add(tire);
+    const hub = new Mesh(new CylinderGeometry(r * 0.58, r * 0.58, 0.19, 20), metal(12371923));
+    hub.rotation.z = Math.PI / 2;
+    wheel.add(hub);
+    const spoke = new Mesh(new BoxGeometry(0.025, r * 0.18, r * 0.85), plastic(4542302));
+    spoke.position.x = side * 0.102;
+    wheel.add(spoke);
+    g.add(wheel);
+    wheels.push(wheel);
+  }
+  g.userData.rollWheels = wheels;
+  g.userData.spin = [...g.userData.spin || [], ...wheels];
+}
 function vacuumTopContainer(g, motor, bodyM, clearM) {
   motor.scale.setScalar(0.48);
   const drum = new Mesh(new CylinderGeometry(0.29, 0.29, 0.43, 24), clearM);
@@ -27997,6 +28020,7 @@ function buildRobot(color) {
   fl.position.set(0, 0.7, 0.4);
   g.add(fl);
   g.userData.spin = [];
+  vacuumWheels(g, 1.04, 0, 0.15);
   return g;
 }
 function buildStick(color) {
@@ -28037,6 +28061,7 @@ function buildStick(color) {
   vacuumJoint(g, [0, 1.9, 0.74], [0, 2.01, 0.82], 0.17, plastic(color));
   fl.position.set(0.25, 1.65, 0.54);
   g.userData.spin = [];
+  vacuumWheels(g, 0.79, -0.28, 0.18);
   return g;
 }
 function buildUpright(color) {
@@ -28057,10 +28082,6 @@ function buildUpright(color) {
   const led = new Mesh(new BoxGeometry(0.8, 0.14, 0.06), emissive(3531007, 1.2));
   led.position.set(0, 0.27, -0.913);
   g.add(led);
-  const wh = new Mesh(new CylinderGeometry(0.24, 0.24, 0.16, 18), metal(4475736));
-  wh.rotation.z = Math.PI / 2;
-  wh.position.set(0, 0.22, 0.1);
-  g.add(wh);
   const fl = flag(color);
   fl.position.set(0.3, 1.6, 0.4);
   g.add(fl);
@@ -28069,7 +28090,8 @@ function buildUpright(color) {
   grip.rotation.y = Math.PI / 2;
   g.add(grip);
   vacuumJoint(g, [0, 2.2, 0.2], [0, 2.49, 0.29], 0.12, metal(13620445));
-  g.userData.spin = [wh];
+  g.userData.spin = [];
+  vacuumWheels(g, 0.72, 0.1, 0.22);
   return g;
 }
 function buildCanister(color) {
@@ -28377,6 +28399,7 @@ function buildMop(color) {
   fl.position.set(0, 0.6, 0.4);
   g.add(fl);
   g.userData.spin = [pad];
+  vacuumWheels(g, 1.01, 0, 0.14);
   return g;
 }
 function buildCyclone(color) {
@@ -28397,15 +28420,12 @@ function buildCyclone(color) {
   const noz = new Mesh(new BoxGeometry(1, 0.16, 0.5), darkMat);
   noz.position.set(0, 0.12, -0.95);
   g.add(noz);
-  const wh = new Mesh(new CylinderGeometry(0.2, 0.2, 0.12, 16), metal(4475736));
-  wh.rotation.z = Math.PI / 2;
-  wh.position.set(0, 0.2, 0.4);
-  g.add(wh);
   const fl = flag(color);
   fl.position.set(0.35, 2.05, 0.2);
   g.add(fl);
   vacuumJoint(g, [0, 0.22, -0.58], [0, 0.16, -0.95], 0.12, darkMat);
-  g.userData.spin = [wh];
+  g.userData.spin = [];
+  vacuumWheels(g, 0.64, 0.4, 0.2);
   return g;
 }
 function buildSteam(color) {
@@ -28448,6 +28468,7 @@ function buildSteam(color) {
   gauge.rotation.x = 0.593;
   g.add(gauge);
   g.userData.spin = [];
+  vacuumWheels(g, 0.66, -0.28, 0.16);
   return g;
 }
 function buildCarVac(color) {
@@ -29936,6 +29957,7 @@ function buildWasher(color) {
   tankDirty.position.z = 0.042;
   vacuumTopContainer(g, motor, bodyM, glass(6867711));
   g.userData.spin = [];
+  vacuumWheels(g, 0.7, -0.23, 0.17);
   return g;
 }
 function makeBricks() {
