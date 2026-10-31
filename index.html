@@ -27954,21 +27954,6 @@ function vacuumWheels(g, halfTrack, z, r = 0.17) {
   g.userData.rollWheels = wheels;
   g.userData.spin = [...g.userData.spin || [], ...wheels];
 }
-function vacuumTopContainer(g, motor, bodyM, clearM) {
-  motor.scale.setScalar(0.48);
-  const drum = new Mesh(new CylinderGeometry(0.29, 0.29, 0.43, 24), clearM);
-  drum.name = "\u0412\u0435\u0440\u0445\u043D\u0438\u0439 \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440 \u043C\u043E\u044E\u0449\u0435\u0433\u043E \u043F\u044B\u043B\u0435\u0441\u043E\u0441\u0430";
-  drum.position.set(0, 2, 0.3);
-  g.add(drum);
-  for (const y of [1.78, 2.22]) {
-    const cap = new Mesh(new CylinderGeometry(0.31, 0.31, 0.07, 24), bodyM);
-    cap.position.set(0, y, 0.3);
-    g.add(cap);
-  }
-  const filter = new Mesh(new CylinderGeometry(0.12, 0.12, 0.38, 16), bodyM);
-  filter.position.copy(drum.position);
-  g.add(filter);
-}
 function makeHose(points, radius = 0.08, color = 2764600) {
   const curve2 = new CatmullRomCurve3(points.map((p) => new Vector3(p[0], p[1], p[2])));
   const g = new Group();
@@ -29917,7 +29902,7 @@ function buildWasher(color) {
   const g = new Group();
   const bodyM = plastic(color);
   const head = new Mesh(new BoxGeometry(1.5, 0.3, 0.9), plastic(2895672));
-  head.position.set(0, 0.2, -0.55);
+  head.position.set(0, 0.2, -0.02);
   head.castShadow = true;
   g.add(head);
   const tubo = new Mesh(new CylinderGeometry(0.16, 0.16, 2, 14), metal(13620445));
@@ -29933,31 +29918,26 @@ function buildWasher(color) {
   tankDirty.rotation.x = -0.4;
   g.add(tankDirty);
   const motor = new Mesh(new SphereGeometry(0.32, 20, 18), bodyM);
-  motor.position.set(0, 1.95, 0.3);
+  motor.position.set(0, 2.12, -0.19);
   motor.castShadow = true;
   g.add(motor);
   const handle = new Mesh(new TorusGeometry(0.28, 0.06, 10, 22), bodyM);
-  handle.position.set(0, 2.4, 0.6);
+  handle.position.set(0, 2.52, 0.06);
   handle.rotation.y = Math.PI / 2;
   g.add(handle);
   [-0.4, 0, 0.4].forEach((x) => {
     const dr = new Mesh(new SphereGeometry(0.08, 8, 8), glass(6733823));
-    dr.position.set(x, 0.1, -1.1);
+    dr.position.set(x, 0.1, -0.57);
     g.add(dr);
   });
   const led = new Mesh(new BoxGeometry(0.6, 0.1, 0.05), emissive(3531007, 1.2));
-  led.position.set(0, 0.25, -1.015);
+  led.position.set(0, 0.25, -0.485);
   g.add(led);
   const fl2 = flag(color);
   fl2.position.set(-0.3, 1, -0.18);
   g.add(fl2);
-  vacuumFitTube(tubo, [0, 0.24, -0.55], [0, 2.05, 0.3]);
-  tankClean.rotation.x = tankDirty.rotation.x = 0.44;
-  tankClean.position.z = -0.217;
-  tankDirty.position.z = 0.042;
-  vacuumTopContainer(g, motor, bodyM, glass(6867711));
   g.userData.spin = [];
-  vacuumWheels(g, 0.7, -0.23, 0.17);
+  vacuumWheels(g, 0.7, 0.2, 0.17);
   return g;
 }
 function makeBricks() {
