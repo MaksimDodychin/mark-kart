@@ -21900,6 +21900,100 @@ var OctahedronGeometry = class _OctahedronGeometry extends PolyhedronGeometry {
     return new _OctahedronGeometry(data.radius, data.detail);
   }
 };
+var ShapeGeometry = class _ShapeGeometry extends BufferGeometry {
+  constructor(shapes = new Shape([new Vector2(0, 0.5), new Vector2(-0.5, -0.5), new Vector2(0.5, -0.5)]), curveSegments = 12) {
+    super();
+    this.type = "ShapeGeometry";
+    this.parameters = {
+      shapes,
+      curveSegments
+    };
+    const indices = [];
+    const vertices = [];
+    const normals = [];
+    const uvs = [];
+    let groupStart = 0;
+    let groupCount = 0;
+    if (Array.isArray(shapes) === false) {
+      addShape(shapes);
+    } else {
+      for (let i = 0; i < shapes.length; i++) {
+        addShape(shapes[i]);
+        this.addGroup(groupStart, groupCount, i);
+        groupStart += groupCount;
+        groupCount = 0;
+      }
+    }
+    this.setIndex(indices);
+    this.setAttribute("position", new Float32BufferAttribute(vertices, 3));
+    this.setAttribute("normal", new Float32BufferAttribute(normals, 3));
+    this.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
+    function addShape(shape) {
+      const indexOffset = vertices.length / 3;
+      const points = shape.extractPoints(curveSegments);
+      let shapeVertices = points.shape;
+      const shapeHoles = points.holes;
+      if (ShapeUtils.isClockWise(shapeVertices) === false) {
+        shapeVertices = shapeVertices.reverse();
+      }
+      for (let i = 0, l = shapeHoles.length; i < l; i++) {
+        const shapeHole = shapeHoles[i];
+        if (ShapeUtils.isClockWise(shapeHole) === true) {
+          shapeHoles[i] = shapeHole.reverse();
+        }
+      }
+      const faces = ShapeUtils.triangulateShape(shapeVertices, shapeHoles);
+      for (let i = 0, l = shapeHoles.length; i < l; i++) {
+        const shapeHole = shapeHoles[i];
+        shapeVertices = shapeVertices.concat(shapeHole);
+      }
+      for (let i = 0, l = shapeVertices.length; i < l; i++) {
+        const vertex2 = shapeVertices[i];
+        vertices.push(vertex2.x, vertex2.y, 0);
+        normals.push(0, 0, 1);
+        uvs.push(vertex2.x, vertex2.y);
+      }
+      for (let i = 0, l = faces.length; i < l; i++) {
+        const face = faces[i];
+        const a = face[0] + indexOffset;
+        const b = face[1] + indexOffset;
+        const c = face[2] + indexOffset;
+        indices.push(a, b, c);
+        groupCount += 3;
+      }
+    }
+  }
+  copy(source) {
+    super.copy(source);
+    this.parameters = Object.assign({}, source.parameters);
+    return this;
+  }
+  toJSON() {
+    const data = super.toJSON();
+    const shapes = this.parameters.shapes;
+    return toJSON(shapes, data);
+  }
+  static fromJSON(data, shapes) {
+    const geometryShapes = [];
+    for (let j = 0, jl = data.shapes.length; j < jl; j++) {
+      const shape = shapes[data.shapes[j]];
+      geometryShapes.push(shape);
+    }
+    return new _ShapeGeometry(geometryShapes, data.curveSegments);
+  }
+};
+function toJSON(shapes, data) {
+  data.shapes = [];
+  if (Array.isArray(shapes)) {
+    for (let i = 0, l = shapes.length; i < l; i++) {
+      const shape = shapes[i];
+      data.shapes.push(shape.uuid);
+    }
+  } else {
+    data.shapes.push(shapes.uuid);
+  }
+  return data;
+}
 var SphereGeometry = class _SphereGeometry extends BufferGeometry {
   constructor(radius = 1, widthSegments = 32, heightSegments = 16, phiStart = 0, phiLength = Math.PI * 2, thetaStart = 0, thetaLength = Math.PI) {
     super();
@@ -25651,6 +25745,112 @@ function sideAt(i) {
 function elev(f) {
   return 2.8 * (0.5 - 0.5 * Math.cos(2 * Math.PI * 2 * f)) + 1.7 * (0.5 - 0.5 * Math.cos(2 * Math.PI * 3 * f));
 }
+var hillWidth = 3.7;
+var hillRoads = [[82, 231, 3.6], [335, 489, 5]].map(([start, end, rise]) => {
+  const a = pts[start].clone().addScaledVector(sideAt(start), -4.8);
+  const b = pts[end].clone().addScaledVector(sideAt(end), -4.8);
+  const chord = b.clone().sub(a), across = new Vector3(-chord.z, 0, chord.x).normalize();
+  const points = [];
+  for (let j = 0; j <= 90; j++) {
+    const t2 = j / 90, w = Math.sin(Math.PI * t2), p = a.clone().lerp(b, t2);
+    p.addScaledVector(across, 2.4 * Math.sin(2 * Math.PI * t2) * w);
+    p.y = elev((start + (end - start) * t2) / M) + rise * w * w;
+    points.push(p);
+  }
+  const length = points.reduce((n, p, i) => i ? n + p.distanceTo(points[i - 1]) : n, 0);
+  return { start, end, points, length };
+});
+function hillSample(x, z) {
+  let best = null, dist = Infinity;
+  for (const road of hillRoads)
+    for (let j = 1; j < road.points.length; j++) {
+      const a = road.points[j - 1], b = road.points[j], dx = b.x - a.x, dz = b.z - a.z;
+      const t2 = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / (dx * dx + dz * dz)));
+      const cx = a.x + t2 * dx, cz = a.z + t2 * dz, d = (x - cx) ** 2 + (z - cz) ** 2;
+      if (d >= dist)
+        continue;
+      dist = d;
+      best = { road, j, t: t2, cx, cz, y: a.y + t2 * (b.y - a.y), fraction: (j - 1 + t2) / (road.points.length - 1), d: Math.sqrt(d) };
+    }
+  return best;
+}
+function hillOpening(i, side) {
+  if (side !== -1)
+    return false;
+  const p = pts[i], s = sideAt(i);
+  return hillSample(p.x - s.x * HW, p.z - s.z * HW).d < hillWidth + 2.6;
+}
+function buildHillRoads() {
+  const asphalt = new MeshStandardMaterial({ color: 6584181, roughness: 0.87, side: DoubleSide });
+  const edge = new MeshStandardMaterial({ color: 16111004, roughness: 0.8, side: DoubleSide });
+  for (const road of hillRoads) {
+    const points = road.points, group = new Group();
+    worldGroup.add(group);
+    for (const [left, right, mat] of [[-hillWidth, hillWidth, asphalt], [-hillWidth, -hillWidth + 0.22, edge], [hillWidth - 0.22, hillWidth, edge]]) {
+      const v = [], ix = [];
+      points.forEach((p, j) => {
+        const dir = points[Math.min(j + 1, points.length - 1)].clone().sub(points[Math.max(0, j - 1)]);
+        dir.y = 0;
+        dir.normalize();
+        for (const l of [left, right])
+          v.push(p.x - dir.z * l, p.y + (mat === edge ? 0.115 : 0.095), p.z + dir.x * l);
+        if (j) {
+          const a = (j - 1) * 2;
+          ix.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+        }
+      });
+      const geo = new BufferGeometry();
+      geo.setAttribute("position", new Float32BufferAttribute(v, 3));
+      geo.setIndex(ix);
+      geo.computeVertexNormals();
+      const mesh = new Mesh(geo, mat);
+      mesh.receiveShadow = true;
+      group.add(mesh);
+    }
+    for (let j = 12; j < 80; j += 12) {
+      const p = points[j];
+      royalMesh(group, new CylinderGeometry(0.6, 0.9, p.y, 8), royalMat(8158322), p.x, p.y / 2, p.z);
+    }
+    for (const j of [3, 9, 83]) {
+      const p = points[j], next = points[j + 1];
+      const mark = new Mesh(new PlaneGeometry(2.5, 3), arrowMat);
+      mark.rotation.order = "YXZ";
+      mark.rotation.set(-Math.PI / 2, Math.atan2(next.x - p.x, next.z - p.z) + Math.PI, 0);
+      mark.position.set(p.x, p.y + 0.135, p.z);
+      group.add(mark);
+    }
+  }
+}
+function clearHillScenery(decor) {
+  worldGroup.updateMatrixWorld(true);
+  const box = new Box3(), p = new Vector3(), matrix = new Matrix4();
+  function blocks(box2) {
+    if (box2.isEmpty() || box2.max.x - box2.min.x > 29 || box2.max.z - box2.min.z > 29)
+      return false;
+    box2.getCenter(p);
+    const hit = hillSample(p.x, p.z);
+    return hit.d < hillWidth + 0.5 + Math.min(3, (box2.max.x - box2.min.x) * 0.5) && box2.max.y > hit.y + 0.25 && box2.min.y < hit.y + 3.4;
+  }
+  for (const root of decor)
+    root.traverse((o) => {
+      if (!o.isMesh)
+        return;
+      if (!o.geometry.boundingBox)
+        o.geometry.computeBoundingBox();
+      if (o.isInstancedMesh) {
+        for (let i = 0; i < o.count; i++) {
+          o.getMatrixAt(i, matrix);
+          matrix.premultiply(o.matrixWorld);
+          if (blocks(box.copy(o.geometry.boundingBox).applyMatrix4(matrix))) {
+            matrix.makeScale(0, 0, 0);
+            o.setMatrixAt(i, matrix);
+          }
+        }
+        o.instanceMatrix.needsUpdate = true;
+      } else if (blocks(box.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld)))
+        o.visible = false;
+    });
+}
 var worldGroup = new Group();
 scene.add(worldGroup);
 var arrowMat = new MeshBasicMaterial({ map: arrowTex, transparent: true, depthWrite: false });
@@ -25728,6 +25928,8 @@ function buildWallMesh(sign2, mat, HWALL, shiny) {
     uv.push(i / 4, 1);
   }
   for (let i = 0; i < M; i++) {
+    if (hillOpening(i, sign2))
+      continue;
     const a = i * 2, b = i * 2 + 1, c = i * 2 + 2, d = i * 2 + 3;
     idx.push(a, c, b, b, c, d);
   }
@@ -27312,12 +27514,15 @@ function buildWorld() {
   worldGroup.add(gr);
   buildArrows();
   royalGate();
+  const firstDecor = worldGroup.children.length;
   L.decor();
   buildBackdrop(L);
   royalTrackDetails(L);
   royalAtmosphere(L);
   royalLighting(L);
   royalWorldAccents(L);
+  clearHillScenery(worldGroup.children.slice(firstDecor));
+  buildHillRoads();
   toonify(worldGroup);
 }
 var atelier = { flags: [], sky: null, quality: isTouchDevice ? "smooth" : "cinema", elapsed: 0 };
@@ -27528,6 +27733,8 @@ function royalTrackDetails(L) {
   const outdoor = ["castle", "garden", "beach", "ice", "dino"].includes(L.id), curbs = [], lights = [], posts = [];
   for (let i = 0; i < M; i += 3)
     for (const d of [-1, 1]) {
+      if (hillOpening(i, d))
+        continue;
       const p = pts[i], s = sideAt(i), y = elev(i / M), yaw = Math.atan2(tans[i].x, tans[i].z);
       if (outdoor)
         curbs.push({ x: p.x + s.x * (HW - 0.32) * d, y: y + 0.13, z: p.z + s.z * (HW - 0.32) * d, ry: yaw, color: Math.floor(i / 3) % 2 ? 16050905 : 14247272 });
@@ -27750,6 +27957,8 @@ function decorUrbanSewer() {
   }
   for (let k = 0; k < N; k++)
     for (let j = 0; j < A; j++) {
+      if (j > A / 2 && hillOpening(k * 4, -1))
+        continue;
       const a = k * (A + 1) + j, b = a + A + 1;
       indices.push(a, b, a + 1, b, b + 1, a + 1);
     }
@@ -27768,6 +27977,8 @@ function decorUrbanSewer() {
       u.push(i / M * TLEN / 7, 0, i / M * TLEN / 7, 0.7);
     }
     for (let k = 0; k < N; k++) {
+      if (hillOpening(k * 4, d))
+        continue;
       const a = k * 2;
       ix.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
     }
@@ -27838,6 +28049,8 @@ function decorUrbanSewer() {
       u.push(0, i / 12, 1, i / 12);
     }
     for (let k = 0; k < N; k++) {
+      if (hillOpening(k * 4, d))
+        continue;
       const a = k * 2;
       ix.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
     }
@@ -28899,38 +29112,32 @@ function makeCat() {
   g.add(dangerRing());
   return g;
 }
+function padArrow(group, z, y, length, width, color, tilt = 0) {
+  const shape = new Shape();
+  const outline = [[-0.18, -0.5], [0.18, -0.5], [0.18, 0.04], [0.5, 0.04], [0, 0.5], [-0.5, 0.04], [-0.18, 0.04]];
+  outline.forEach(([x, v], i) => shape[i ? "lineTo" : "moveTo"](x * width, -v * length));
+  shape.closePath();
+  const mat = new MeshBasicMaterial({ color, side: DoubleSide });
+  const arrow = new Mesh(new ShapeGeometry(shape), mat);
+  arrow.rotation.x = -Math.PI / 2 - tilt;
+  arrow.position.set(0, y, z);
+  group.add(arrow);
+}
 function makeBoost() {
   const g = new Group();
-  const pad = new Mesh(new BoxGeometry(3.4, 0.12, 4.2), new MeshStandardMaterial({ color: 402490, roughness: 0.4, emissive: 600644, emissiveIntensity: 0.8 }));
-  pad.position.y = 0.1;
-  g.add(pad);
-  [-1, 1].forEach((x) => {
-    const rail = new Mesh(new BoxGeometry(0.12, 0.2, 4.2), emissive(3531007, 1.1));
-    rail.position.set(x * 1.62, 0.23, 0);
-    g.add(rail);
-  });
-  for (let k = 0; k < 3; k++) {
-    const ar = new Mesh(new ConeGeometry(0.75, 0.8, 4), emissive(3531007, 1.8));
-    ar.rotation.x = -Math.PI / 2;
-    ar.position.set(0, 0.2, -1.2 + k * 1.1);
-    g.add(ar);
-  }
+  royalBox(g, 3.5, 0.12, 4.25, royalMat(1337542), 0, 0.12, 0, 0.05);
+  royalBox(g, 3.17, 0.05, 3.97, royalMat(1201064), 0, 0.2, 0, 0.02);
+  for (const z of [-0.95, 0.94])
+    padArrow(g, z, 0.242, 1.63, 1.9, 12973567);
   return g;
 }
 function makeJump() {
-  const g = new Group();
-  const pad = new Mesh(new CylinderGeometry(1.7, 1.7, 0.32, 28), new MeshStandardMaterial({ color: 14826299, roughness: 0.4, emissive: 5898240, emissiveIntensity: 0.5 }));
-  pad.position.y = 0.22;
-  g.add(pad);
-  const ring = new Mesh(new TorusGeometry(1.7, 0.18, 12, 32), emissive(16765773, 1.1));
-  ring.rotation.x = Math.PI / 2;
-  ring.position.y = 0.36;
-  g.add(ring);
-  for (let k = 0; k < 3; k++) {
-    const up = new Mesh(new ConeGeometry(0.22, 0.75, 16), emissive(16774048, 1));
-    up.position.set((k - 1) * 0.55, 0.82, -0.25);
-    g.add(up);
-  }
+  const g = new Group(), angle = Math.atan2(0.8, 3.8);
+  const slope = royalBox(g, 3.4, 0.18, 3.9, royalMat(16761651), 0, 0.54, 0, 0.07);
+  slope.rotation.x = -angle;
+  for (const x of [-1.35, 1.35])
+    royalBox(g, 0.23, 0.83, 0.44, royalMat(12028454), x, 0.42, 1.6, 0.04);
+  padArrow(g, 0, 0.65, 2.15, 1.5, 6438936, angle);
   return g;
 }
 function makeOil() {
@@ -30779,9 +30986,6 @@ function makePortalColored(ringHex, discHex, starHex) {
 function makePortalStart() {
   return makePortalColored(16734762, 16757866, 16747067);
 }
-function makePortalSecret() {
-  return makePortalColored(2806890, 10223536, 5111706);
-}
 function makePortalBonus() {
   return makePortalColored(16765773, 16771488, 16764730);
 }
@@ -30841,11 +31045,6 @@ function buildItems() {
   }
   placePortalTyped(gold ? makePortalGold : makePortalStart, "portal_start", Math.floor(M * 0.46), 0);
   placePortalTyped(makePortalBonus, "portal_bonus", Math.floor(M * 0.3), 0);
-  [0.16, 0.56].forEach((fr) => {
-    const i = Math.floor(M * fr);
-    const tgt = (i + Math.floor(M * 0.22)) % M;
-    placePortalTyped(gold ? makePortalGold : makePortalSecret, "portal_shortcut", i, (fr < 0.4 ? -1 : 1) * (HW - 1.6), { target: tgt });
-  });
   const gap = DIFFS[diff].gap;
   const pool = OBSTACLES[LOCATIONS[selLoc].id] || OBSTACLES.castle;
   for (let i = 64; i < M - 14; i += gap) {
@@ -30892,16 +31091,6 @@ function teleportStart() {
   teleCd = 2;
   flashEl.animate([{ opacity: 0.5 }, { opacity: 0 }], { duration: 450 });
   Sound.crash();
-}
-function teleportForward(idx) {
-  player.x = pts[idx].x;
-  player.z = pts[idx].z;
-  player.h = Math.atan2(tans[idx].x, tans[idx].z);
-  player.prevU = idx / M;
-  player.hitCd = 0.5;
-  teleCd = 1.5;
-  flashEl.animate([{ opacity: 0.35 }, { opacity: 0 }], { duration: 300 });
-  Sound.boost();
 }
 var bonusT = 0;
 var savedSky = null;
@@ -32090,35 +32279,45 @@ function updateKart(P, dt) {
     P.hitCd -= dt;
   if (P.magnet > 0)
     P.magnet -= dt;
-  const ni = nearestIndex(P.x, P.z);
-  const s = sideAt(ni);
-  let lateral = (P.x - pts[ni].x) * s.x + (P.z - pts[ni].z) * s.z;
-  const lim = HW - 1;
-  if (lateral > lim) {
-    const o = lateral - lim;
-    P.x -= s.x * o;
-    P.z -= s.z * o;
-    P.speed *= 0.8;
-    if (P.bumpCd <= 0) {
-      Sound.bump();
-      P.bumpCd = 0.4;
+  const ni = nearestIndex(P.x, P.z), s = sideAt(ni), lateral = (P.x - pts[ni].x) * s.x + (P.z - pts[ni].z) * s.z;
+  const hit = hillSample(P.x, P.z);
+  const onHill = state !== "bonus" && hit.d - (hillWidth - 1) < Math.abs(lateral) - (HW - 1);
+  let gY = elev(ni / M), progress = ni / M;
+  if (onHill) {
+    if (hit.d > hillWidth - 1) {
+      const k = (hillWidth - 1) / hit.d;
+      P.x = hit.cx + (P.x - hit.cx) * k;
+      P.z = hit.cz + (P.z - hit.cz) * k;
+      P.speed *= 0.8;
     }
-  } else if (lateral < -lim) {
-    const o = -lim - lateral;
-    P.x += s.x * o;
-    P.z += s.z * o;
-    P.speed *= 0.8;
-    if (P.bumpCd <= 0) {
-      Sound.bump();
-      P.bumpCd = 0.4;
+    gY = hit.y;
+    progress = (hit.road.start + hit.fraction * (hit.road.end - hit.road.start)) / M;
+    if (hit.fraction < 0.3) {
+      P.hillEntry = hit.road;
+      P.hillExit = null;
+    }
+    if (P.hillEntry === hit.road && hit.fraction > 0.75)
+      P.hillExit = hit.road;
+  } else {
+    if (P.hillExit && Math.abs(ni - P.hillExit.end) < 20 && state === "race")
+      achBump("shortcuts");
+    P.hillEntry = P.hillExit = null;
+    if (Math.abs(lateral) > HW - 1) {
+      const excess = lateral - Math.sign(lateral) * (HW - 1);
+      P.x -= s.x * excess;
+      P.z -= s.z * excess;
+      P.speed *= 0.8;
+      if (P.bumpCd <= 0) {
+        Sound.bump();
+        P.bumpCd = 0.4;
+      }
     }
   }
-  const gY = elev(ni / M);
   const hop = P.air > 0 ? Math.sin((1 - P.air / 0.9) * Math.PI) * 3.2 : Math.sin(t * 18) * 0.03;
   P.mesh.position.set(P.x, gY + hop, P.z);
   P.mesh.rotation.y = P.h + Math.PI;
   const ai = nearestIndex(P.x + F.x * 4, P.z + F.z * 4);
-  const pitch = Math.atan2(elev(ai / M) - gY, 4);
+  const pitch = Math.atan2((onHill ? hillSample(P.x + F.x * 4, P.z + F.z * 4).y : elev(ai / M)) - gY, 4);
   P.mesh.rotation.x = -pitch;
   P.mesh.rotation.z += ((keys[K.left] ? 0.18 : keys[K.right] ? -0.18 : 0) - P.mesh.rotation.z) * Math.min(1, dt * 8);
   P.mesh.userData.spin?.forEach((m) => m.rotation.x += P.speed * dt * 2);
@@ -32137,7 +32336,7 @@ function updateKart(P, dt) {
     PL.visible = false;
     AU.visible = false;
   }
-  P.u = ni / M;
+  P.u = progress;
   if (state !== "bonus" && P.prevU > 0.75 && P.u < 0.25) {
     if (P.lap === 0) {
       P.lap = 1;
@@ -32217,16 +32416,39 @@ function updateRivals(dt) {
       sp = Math.min(sp, 9);
     if (state === "bonus")
       sp = Math.max(15, Math.min(26, r.base + 3));
-    r.param += sp * dt / TLEN;
+    const nextRoad = hillRoads.find((road) => r.param < road.start / M && r.param + sp * dt / TLEN >= road.start / M);
+    if (nextRoad && state !== "bonus" && (ri + r.lap) % 2 === 0)
+      r.hill = nextRoad;
+    const distPerLap = r.hill ? r.hill.length * M / (r.hill.end - r.hill.start) : TLEN;
+    r.param += sp * dt / distPerLap;
+    if (r.hill && (r.param >= r.hill.end / M || r.param < r.hill.start / M - 0.01 || state === "bonus"))
+      r.hill = null;
     if (r.param >= 1) {
       r.param -= 1;
       r.lap = r.lap === 0 ? 1 : r.lap + 1;
     }
     const pos = curve.getPointAt(r.param), tan = curve.getTangentAt(r.param).setY(0).normalize();
     const side = new Vector3(-tan.z, 0, tan.x), lat = Math.sin(t * 1.5 + r.phase) * r.lat;
-    const ry = elev(r.param);
+    let ry = elev(r.param);
+    let laneBlend = 1;
+    if (r.hill) {
+      const d = r.hill, fr = Math.max(0, Math.min(1, (r.param * M - d.start) / (d.end - d.start))), u = fr * (d.points.length - 1);
+      const j = Math.min(d.points.length - 2, Math.floor(u));
+      pos.copy(d.points[j]).lerp(d.points[j + 1], u - j);
+      tan.subVectors(d.points[j + 1], d.points[j]).setY(0).normalize();
+      side.set(-tan.z, 0, tan.x);
+      ry = pos.y;
+      laneBlend = 0.27;
+    }
     const lim = typeof HW !== "undefined" ? HW - 0.8 : r.lat + 2.5;
-    let off = Math.max(-lim, Math.min(lim, lat + (r.kick || 0)));
+    let off = Math.max(-lim, Math.min(lim, lat + (r.kick || 0))) * laneBlend;
+    if (!r.hill && (ri + r.lap) % 2 === 0 && state !== "bonus") {
+      for (const road of hillRoads) {
+        const gap = road.start - r.param * M, after = r.param * M - road.end;
+        const blend = gap >= 0 && gap < 17 ? 1 - gap / 17 : after >= 0 && after < 17 ? 1 - after / 17 : 0;
+        off = off * (1 - blend) - 4.8 * blend;
+      }
+    }
     r.mesh.visible = true;
     r.mesh.position.set(pos.x + side.x * off, ry + Math.sin(t * 16 + r.phase) * 0.03, pos.z + side.z * off);
     r.mesh.rotation.y = Math.atan2(tan.x, tan.z) + Math.PI + (r.slow > 0 ? Math.sin(t * 22) * 0.18 : 0);
@@ -32291,9 +32513,6 @@ function updateRivals(dt) {
                   shadows[ri + 1].visible = false;
               }
             }
-          } else if (pt.type === "portal_shortcut") {
-            r.teleCd = 2;
-            r.param = Math.min(0.985, r.param + 0.22);
           } else if (pt.type === "portal") {
             r.teleCd = 2.5;
             r.param = (r.param + 0.35) % 1;
@@ -32311,7 +32530,7 @@ function updateRivals(dt) {
     r.score = r.lap + r.param;
     if (!r.dead && shadows[ri + 1]) {
       shadows[ri + 1].visible = true;
-      shadows[ri + 1].position.set(r.mesh.position.x, elev(r.param) + 0.06, r.mesh.position.z);
+      shadows[ri + 1].position.set(r.mesh.position.x, ry + 0.06, r.mesh.position.z);
     }
     if (rivalAuras[ri]) {
       if (r.boost > 0) {
@@ -32448,16 +32667,6 @@ function updateItems(dt) {
         if (teleCd <= 0) {
           achBump("bonus");
           enterBonus();
-          return;
-        }
-      } else if (it.type === "portal_shortcut") {
-        if (teleCd <= 0) {
-          achBump("shortcuts");
-          if (typeof popWow === "function")
-            popWow("\u{1F300} \u0421\u0420\u0415\u0417\u041A\u0410!", 50, 30, "#7CFC9B");
-          screenShake(260);
-          megaConfetti(8);
-          teleportForward(it.target);
           return;
         }
       } else if (P.air > 0) {
@@ -32610,9 +32819,6 @@ function updateItemsP2(dt) {
     } else if (it.type === "portal_start") {
       if (P.teleCd <= 0)
         teleTo(P, 0);
-    } else if (it.type === "portal_shortcut") {
-      if (P.teleCd <= 0)
-        teleTo(P, it.target);
     } else if (it.type === "portal_bonus") {
     } else if (P.air > 0) {
     } else if (it.type === "boost" && it.cd2 <= 0) {
