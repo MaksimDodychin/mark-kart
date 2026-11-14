@@ -28079,19 +28079,22 @@ function buildUpright(color) {
   vacuumWheels(g, 0.72, 0.1, 0.22);
   return g;
 }
-function buildCanister(color) {
+function buildCanister(color, cyclone = false) {
   const g = new Group();
   const body = new Mesh(new CapsuleGeometry(0.5, 1.2, 8, 18), plastic(color));
   body.rotation.z = Math.PI / 2;
   body.position.set(0, 0.55, 0.35);
   body.castShadow = true;
   g.add(body);
-  [[-0.52, 0.7], [0.52, 0.7]].forEach(([x, z]) => {
-    const w = new Mesh(new CylinderGeometry(0.24, 0.24, 0.14, 16), metal(3949136));
-    w.rotation.z = Math.PI / 2;
-    w.position.set(x, 0.24, z);
-    g.add(w);
-  });
+  if (cyclone)
+    vacuumWheels(g, 0.9, 0.4, 0.27);
+  else
+    [[-0.52, 0.7], [0.52, 0.7]].forEach(([x, z]) => {
+      const w = new Mesh(new CylinderGeometry(0.24, 0.24, 0.14, 16), metal(3949136));
+      w.rotation.z = Math.PI / 2;
+      w.position.set(x, 0.24, z);
+      g.add(w);
+    });
   const noz = new Mesh(new BoxGeometry(1, 0.16, 0.5), darkMat);
   noz.position.set(0, 0.12, -0.95);
   g.add(noz);
@@ -28099,7 +28102,18 @@ function buildCanister(color) {
   wand.position.set(0, 0.9, -0.45);
   wand.rotation.x = 0.7;
   g.add(wand);
-  g.add(makeHose([[0, 1.5, 0.1], [0.24, 1.18, 0.02], [-0.22, 0.86, 0.2], [0, 0.58, 0.34]]));
+  if (cyclone) {
+    const rubber = plastic(3225150);
+    const wandEnd = [0, 1.56, 0.08], elbow = [0.13, 1.65, 0.2], gripEnd = [0.42, 1.59, 0.32];
+    vacuumJoint(g, wandEnd, elbow, 0.112, rubber);
+    vacuumJoint(g, elbow, gripEnd, 0.118, rubber);
+    const socket = [0.83, 0.74, 0.12], inlet = [0.7, 0.66, 0.25];
+    vacuumJoint(g, inlet, socket, 0.145, rubber);
+    const hose = makeHose([gripEnd, [0.68, 1.51, 0.34], [1.07, 1.16, -0.04], [1.09, 0.83, -0.12], socket], 0.096);
+    hose.name = "\u0413\u043E\u0444\u0440\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u044B\u0439 \u0448\u043B\u0430\u043D\u0433";
+    g.add(hose);
+  } else
+    g.add(makeHose([[0, 1.5, 0.1], [0.24, 1.18, 0.02], [-0.22, 0.86, 0.2], [0, 0.58, 0.34]]));
   const led = new Mesh(new BoxGeometry(0.5, 0.1, 0.05), emissive(3531007, 1));
   led.position.set(0, 0.62, 0.95);
   g.add(led);
@@ -28107,7 +28121,7 @@ function buildCanister(color) {
   fl.position.set(0, 0.95, 0.6);
   g.add(fl);
   vacuumFitTube(wand, [0, 0.17, -0.95], [0, 1.56, 0.08]);
-  g.userData.spin = [];
+  g.userData.spin ||= [];
   return g;
 }
 function buildHandheld(color) {
@@ -28388,29 +28402,28 @@ function buildMop(color) {
   return g;
 }
 function buildCyclone(color) {
-  const g = new Group();
-  const base = new Mesh(new BoxGeometry(1.4, 0.34, 1), darkMat);
-  base.position.set(0, 0.24, -0.2);
-  base.castShadow = true;
-  g.add(base);
-  const bin = new Mesh(new CylinderGeometry(0.5, 0.5, 1.6, 24), glass(16769658));
-  bin.position.set(0, 1.1, 0.2);
+  const g = buildCanister(color, true), bin = new Group();
+  bin.name = "\u0426\u0438\u043A\u043B\u043E\u043D\u043D\u044B\u0439 \u043F\u044B\u043B\u0435\u0441\u0431\u043E\u0440\u043D\u0438\u043A";
+  bin.position.set(-0.48, 0.88, 0.36);
   g.add(bin);
-  const core = new Mesh(new CylinderGeometry(0.18, 0.18, 1.5, 16), plastic(color));
-  core.position.set(0, 1.1, 0.2);
-  g.add(core);
-  const top = new Mesh(new CylinderGeometry(0.55, 0.5, 0.3, 24), plastic(color));
-  top.position.set(0, 2, 0.2);
-  g.add(top);
-  const noz = new Mesh(new BoxGeometry(1, 0.16, 0.5), darkMat);
-  noz.position.set(0, 0.12, -0.95);
-  g.add(noz);
-  const fl = flag(color);
-  fl.position.set(0.35, 2.05, 0.2);
-  g.add(fl);
-  vacuumJoint(g, [0, 0.22, -0.58], [0, 0.16, -0.95], 0.12, darkMat);
-  g.userData.spin = [];
-  vacuumWheels(g, 0.64, 0.4, 0.2);
+  const accent = plastic(color), rubber = plastic(3423043);
+  function ring(top, bottom, height, y, material) {
+    const mesh = new Mesh(new CylinderGeometry(top, bottom, height, 32), material);
+    mesh.position.y = y;
+    mesh.castShadow = !material.transparent;
+    bin.add(mesh);
+    return mesh;
+  }
+  ring(0.38, 0.34, 0.14, 0.01, rubber);
+  ring(0.355, 0.32, 0.62, 0.36, glass(11459567));
+  ring(0.21, 0.075, 0.46, 0.38, accent);
+  ring(0.26, 0.2, 0.12, 0.6, metal(10991295));
+  ring(0.38, 0.38, 0.12, 0.71, accent);
+  const points = [[-0.24, 0.74, 0], [-0.22, 0.93, 0], [-0.14, 1, 0], [0.14, 1, 0], [0.22, 0.93, 0], [0.24, 0.74, 0]];
+  const curve2 = new CatmullRomCurve3(points.map((p) => new Vector3(...p)));
+  const handle = new Mesh(new TubeGeometry(curve2, 24, 0.045, 10, false), rubber);
+  handle.name = "\u0420\u0443\u0447\u043A\u0430 \u0434\u043B\u044F \u043F\u0435\u0440\u0435\u043D\u043E\u0441\u043A\u0438";
+  bin.add(handle);
   return g;
 }
 function buildSteam(color) {
