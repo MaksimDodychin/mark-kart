@@ -25729,8 +25729,29 @@ var hedgeTex = makeTex(128, 128, (g, w, h) => {
     g.fillRect(Math.random() * w, Math.random() * h, 4, 4);
   }
 }, [10, 3]);
-var CP = [[0, 46], [58, 34], [90, -6], [82, -68], [52, -112], [2, -124], [-48, -114], [-90, -78], [-100, -22], [-72, 28], [-32, 50]].map((p) => new Vector3(p[0], 0, p[1]));
-var curve = new CatmullRomCurve3(CP, true, "catmullrom", 0.5);
+var CP = [
+  [0, 48],
+  [47, 42],
+  [92, 16],
+  [96, -15],
+  [70, -34],
+  [51, -58],
+  [71, -81],
+  [73, -112],
+  [31, -128],
+  [-9, -116],
+  [-51, -123],
+  [-89, -97],
+  [-83, -65],
+  [-53, -46],
+  [-61, -19],
+  [-93, 7],
+  [-71, 38],
+  [-34, 53]
+].map((p) => new Vector3(p[0] * 1.35, 0, p[1] * 1.35));
+var curve = new CatmullRomCurve3(CP, true, "catmullrom", 0.75);
+curve.arcLengthDivisions = 3e3;
+curve.updateArcLengths();
 var TLEN = curve.getLength();
 var M = 600;
 var pts = curve.getSpacedPoints(M);
@@ -25746,19 +25767,28 @@ function elev(f) {
   return 2.8 * (0.5 - 0.5 * Math.cos(2 * Math.PI * 2 * f)) + 1.7 * (0.5 - 0.5 * Math.cos(2 * Math.PI * 3 * f));
 }
 var hillWidth = 3.7;
-var hillRoads = [[82, 231, 3.6], [335, 489, 5]].map(([start, end, rise]) => {
-  const a = pts[start].clone().addScaledVector(sideAt(start), -4.8);
-  const b = pts[end].clone().addScaledVector(sideAt(end), -4.8);
-  const chord = b.clone().sub(a), across = new Vector3(-chord.z, 0, chord.x).normalize();
-  const points = [];
-  for (let j = 0; j <= 90; j++) {
-    const t2 = j / 90, w = Math.sin(Math.PI * t2), p = a.clone().lerp(b, t2);
-    p.addScaledVector(across, 2.4 * Math.sin(2 * Math.PI * t2) * w);
+var hillRoads = [
+  [45, 120, 3.6, -1],
+  [135, 200, 4.2, 1],
+  [315, 405, 5, -1],
+  [420, 490, 3.8, 1]
+].map(([start, end, rise, side]) => {
+  const a = pts[start].clone().addScaledVector(sideAt(start), side * 4.8);
+  const b = pts[end].clone().addScaledVector(sideAt(end), side * 4.8);
+  const reach = a.distanceTo(b) * 0.23;
+  const bend = new CubicBezierCurve3(
+    a,
+    a.clone().addScaledVector(tans[start], reach),
+    b.clone().addScaledVector(tans[end], -reach),
+    b
+  );
+  const points = bend.getSpacedPoints(90);
+  points.forEach((p, j) => {
+    const t2 = j / 90, w = Math.sin(Math.PI * t2);
     p.y = elev((start + (end - start) * t2) / M) + rise * w * w;
-    points.push(p);
-  }
+  });
   const length = points.reduce((n, p, i) => i ? n + p.distanceTo(points[i - 1]) : n, 0);
-  return { start, end, points, length };
+  return { start, end, side, points, length };
 });
 function hillSample(x, z) {
   let best = null, dist = Infinity;
@@ -25775,10 +25805,8 @@ function hillSample(x, z) {
   return best;
 }
 function hillOpening(i, side) {
-  if (side !== -1)
-    return false;
   const p = pts[i], s = sideAt(i);
-  return hillSample(p.x - s.x * HW, p.z - s.z * HW).d < hillWidth + 2.6;
+  return hillSample(p.x + side * s.x * HW, p.z + side * s.z * HW).d < hillWidth + 2.6;
 }
 function buildHillRoads() {
   const asphalt = new MeshStandardMaterial({ color: 6584181, roughness: 0.87, side: DoubleSide });
@@ -27957,7 +27985,7 @@ function decorUrbanSewer() {
   }
   for (let k = 0; k < N; k++)
     for (let j = 0; j < A; j++) {
-      if (j > A / 2 && hillOpening(k * 4, -1))
+      if (hillOpening(k * 4, j < A / 2 ? 1 : -1))
         continue;
       const a = k * (A + 1) + j, b = a + A + 1;
       indices.push(a, b, a + 1, b, b + 1, a + 1);
@@ -32446,7 +32474,7 @@ function updateRivals(dt) {
       for (const road of hillRoads) {
         const gap = road.start - r.param * M, after = r.param * M - road.end;
         const blend = gap >= 0 && gap < 17 ? 1 - gap / 17 : after >= 0 && after < 17 ? 1 - after / 17 : 0;
-        off = off * (1 - blend) - 4.8 * blend;
+        off = off * (1 - blend) + road.side * 4.8 * blend;
       }
     }
     r.mesh.visible = true;
