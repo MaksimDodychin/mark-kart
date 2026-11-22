@@ -28172,6 +28172,82 @@ function vacuumJoint(g, a, b, r, material) {
   g.add(m);
   return m;
 }
+function addGroundContact(root, r = 0.8, flat = true) {
+  if (root.userData.contactShadow)
+    return;
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const ctx = c.getContext("2d"), grad = ctx.createRadialGradient(32, 32, 3, 32, 32, 31);
+  grad.addColorStop(0, "rgba(8,13,23,.55)");
+  grad.addColorStop(0.5, "rgba(8,13,23,.3)");
+  grad.addColorStop(1, "rgba(8,13,23,0)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 64, 64);
+  const tex = new CanvasTexture(c), mesh = new Mesh(new PlaneGeometry(r * 2, r * 2), new MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0.8, polygonOffset: true, polygonOffsetFactor: -1 }));
+  mesh.name = "\u041C\u044F\u0433\u043A\u0430\u044F \u0442\u0435\u043D\u044C \u0433\u0435\u0440\u043E\u044F";
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.position.y = 0.025;
+  root.add(mesh);
+  root.userData.contactShadow = mesh;
+  mesh.onBeforeRender = () => {
+    const height = flat ? Math.max(0, root.position.y) : root.userData.shadowLift || 0;
+    mesh.position.y = 0.025 - height;
+    mesh.material.opacity = 0.8 / (1 + height * 0.2);
+    mesh.scale.setScalar(1 + Math.min(height, 8) * 0.035);
+    mesh.updateMatrixWorld(true);
+  };
+}
+function prepareRollingWheels(g) {
+  if (g.userData.wheelsPrepared)
+    return;
+  g.userData.wheelsPrepared = true;
+  const groups = g.userData.rollWheels || [], old = [];
+  g.traverse((o) => {
+    if (o.isMesh && o.geometry?.type === "CylinderGeometry") {
+      const p = o.geometry.parameters;
+      if (p.radiusTop >= 0.14 && p.radiusTop <= 0.48 && Math.abs(Math.abs(o.rotation.z) - Math.PI / 2) < 0.05 && Math.abs(o.position.y - p.radiusTop) < 0.16 && !groups.includes(o.parent))
+        old.push(o);
+    }
+  });
+  for (const mesh of old) {
+    const parent = mesh.parent, pivot = new Group();
+    pivot.position.copy(mesh.position);
+    parent.add(pivot);
+    pivot.add(mesh);
+    mesh.position.set(0, 0, 0);
+    pivot.userData.rollRadius = mesh.geometry.parameters.radiusTop;
+    groups.push(pivot);
+  }
+  for (const w of groups) {
+    w.name = "\u0412\u0440\u0430\u0449\u0430\u044E\u0449\u0435\u0435\u0441\u044F \u043A\u043E\u043B\u0435\u0441\u043E";
+    const r = w.userData.rollRadius || w.children.find((m) => m.geometry?.type === "CylinderGeometry")?.geometry.parameters.radiusTop || 0.17;
+    w.userData.rollRadius = r;
+    const side = Math.sign(w.position.x) || 1;
+    const depth = w.children.find((m) => m.geometry?.type === "CylinderGeometry")?.geometry.parameters.height || 0.18;
+    for (let i = 0; i < 3; i++) {
+      const spoke = new Mesh(new BoxGeometry(0.026, r * 0.16, r * 1.12), metal(i === 0 ? 16177824 : 14411501));
+      spoke.position.x = side * (depth / 2 + 0.018);
+      spoke.rotation.x = i * Math.PI / 3;
+      w.add(spoke);
+    }
+    const mark = new Mesh(new BoxGeometry(0.035, r * 0.25, r * 0.18), plastic(16238924));
+    mark.position.set(side * (depth / 2 + 0.022), r * 0.76, 0);
+    w.add(mark);
+  }
+  g.userData.rollWheels = groups;
+  g.userData.spin = [.../* @__PURE__ */ new Set([...g.userData.spin || [], ...groups])];
+  addGroundContact(g, 1.1, false);
+}
+function animateRollingWheels(g, speed, dt, lift = 0) {
+  const pos = g.position, last = g.userData.wheelPosition;
+  let distance = last ? Math.hypot(pos.x - last.x, pos.z - last.z) : 0;
+  if (distance > 5)
+    distance = 0;
+  g.userData.wheelPosition = { x: pos.x, z: pos.z };
+  g.userData.shadowLift = Math.max(0, lift);
+  for (const m of g.userData.spin || [])
+    m.rotation.x += m.userData.rollRadius ? distance * Math.sign(speed) / m.userData.rollRadius : speed * dt * 2;
+}
 function vacuumWheels(g, halfTrack, z, r = 0.17) {
   vacuumJoint(g, [-halfTrack, r, z], [halfTrack, r, z], 0.045, metal(9279655));
   const wheels = [];
@@ -28966,6 +29042,7 @@ function makeCord() {
   return g;
 }
 function addCord(group) {
+  prepareRollingWheels(group);
   if (group.userData.cordless)
     return;
   const c = makeCord();
@@ -32348,7 +32425,7 @@ function updateKart(P, dt) {
   const pitch = Math.atan2((onHill ? hillSample(P.x + F.x * 4, P.z + F.z * 4).y : elev(ai / M)) - gY, 4);
   P.mesh.rotation.x = -pitch;
   P.mesh.rotation.z += ((keys[K.left] ? 0.18 : keys[K.right] ? -0.18 : 0) - P.mesh.rotation.z) * Math.min(1, dt * 8);
-  P.mesh.userData.spin?.forEach((m) => m.rotation.x += P.speed * dt * 2);
+  animateRollingWheels(P.mesh, P.speed, dt, hop);
   if (P.power > 0) {
     P.power -= dt;
     const c = new Color().setHSL(t * 0.6 % 1, 1, 0.55);
@@ -32480,7 +32557,7 @@ function updateRivals(dt) {
     r.mesh.visible = true;
     r.mesh.position.set(pos.x + side.x * off, ry + Math.sin(t * 16 + r.phase) * 0.03, pos.z + side.z * off);
     r.mesh.rotation.y = Math.atan2(tan.x, tan.z) + Math.PI + (r.slow > 0 ? Math.sin(t * 22) * 0.18 : 0);
-    r.mesh.userData.spin?.forEach((m) => m.rotation.x += sp * dt * 2);
+    animateRollingWheels(r.mesh, sp, dt);
     if (r.hitCd > 0)
       r.hitCd -= dt;
     if (r.hitCd <= 0) {
