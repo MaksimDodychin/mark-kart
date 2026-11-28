@@ -33,5 +33,19 @@
     "stick",
     "steam",
     "washer"
-  ]
+  ],
+  "halloween_costumes": {
+    "stick": "Дракула",
+    "steam": "Дракула",
+    "washer": "Дракула",
+    "canister": "Зомби",
+    "cyclone": "Франкенштейн",
+    "robot": "Оборотень"
+  },
+  "race_skies": {
+    "halloween": "Фиолетовая ночь со звёздами и луной",
+    "newyear": "Синяя снежная ночь со звёздами и луной",
+    "easter": "Весенний день",
+    "birthday": "Тёплый закат"
+  }
 }

@@ -4,7 +4,7 @@
 const DAY=86400000;
 const info={
  birthday:{title:'День рождения игры',icon:'🎂',colors:['#ff72b5','#65dce8','#ffe08a'],tint:'#ffe0d0',sky:'#bbcfe9',description:'Торты, воздушные шары, крошки торта и «С днём рождения».'},
- halloween:{title:'Хэллоуин',icon:'🎃',colors:['#ff8b25','#a879ed','#a7df69'],tint:'#5a397d',sky:'#21172f',description:'Тыквы, паутина, фантики от конфет. Костюм Дракулы — у вертикального, паровой швабры и моющего пылесоса.'},
+ halloween:{title:'Хэллоуин',icon:'🎃',colors:['#ff8b25','#a879ed','#a7df69'],tint:'#5a397d',sky:'#21172f',description:'Тыквы, паутина и фантики. Вертикальные модели — Дракулы, канистровый — зомби, циклонный — Франкенштейн, робот — оборотень.'},
  newyear:{title:'Новый год',icon:'🎄',colors:['#ff646b','#7be4c6','#ffe6a0'],tint:'#c4e5f0',sky:'#9bbdd7',description:'Ёлки, подарки, снег, упавшие иголки и новогодняя мелодия.'},
  easter:{title:'Пасха',icon:'🥚',colors:['#ffb8d4','#9bdeb5','#ffe7a0'],tint:'#e9f2cf',sky:'#bddbe6',description:'Собирай пасхальные яички среди цветов под весеннюю музыку.'}
 };
@@ -33,7 +33,7 @@ function nextDate(id,date,birthday){
 }
 function create(options){
  const {THREE,scene,birthday}=options;let active=activeAt(new Date(),birthday)?.id||null;
- let decorations=null,painted=[],paintedSky=[],lastRoom=null,lastTrack=null,elapsed=0;const players=new Map();
+ let decorations=null,painted=[],paintedSky=[],hiddenSky=[],lastRoom=null,lastTrack=null,elapsed=0;const players=new Map();
  const api={onChange:null,info,orthodoxEaster,activeAt:date=>activeAt(date,birthday),dates:y=>dates(y,birthday),get id(){return active;},get birthday(){return birthday;}};
  const color=c=>new THREE.Color(c);
  function material(c,glow=false){return new THREE.MeshStandardMaterial({color:c,roughness:.48,metalness:.03,emissive:glow?c:0,emissiveIntensity:glow?.7:0});}
@@ -43,9 +43,9 @@ function create(options){
  const cyl=(g,r1,r2,h,m,x,y,z)=>mesh(g,new THREE.CylinderGeometry(r1,r2,h,20),m,x,y,z);
  function rod(g,a,b,r,m){const av=new THREE.Vector3(...a),bv=new THREE.Vector3(...b),v=bv.clone().sub(av),o=cyl(g,r,r,v.length(),m,0,0,0);o.position.copy(av.add(bv).multiplyScalar(.5));o.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),v.normalize());return o;}
  function dispose(root){const geometries=new Set(),materials=new Set();root.traverse(o=>{if(o.geometry)geometries.add(o.geometry);if(o.material)(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>materials.add(m));});geometries.forEach(g=>{if(!g.userData.holidayShared)g.dispose();});materials.forEach(m=>{if(m.userData.holidayShared)return;if(m.map?.userData.holidayOwned)m.map.dispose();m.dispose();});}
- function restorePaint(){for(const [m,c,e,map]of painted){m.color.copy(c);if(e)m.emissive.copy(e);if(m.map!==map){m.map=map;m.needsUpdate=true;}}painted=[];for(const [uniform,value]of paintedSky)uniform.value.copy(value);paintedSky=[];}
+ function restorePaint(){for(const [m,c,e,map]of painted){m.color.copy(c);if(e)m.emissive.copy(e);if(m.map!==map){m.map=map;m.needsUpdate=true;}}painted=[];for(const [uniform,value]of paintedSky)uniform.value.copy(value);paintedSky=[];for(const [object,visible]of hiddenSky)object.visible=visible;hiddenSky=[];}
  function paint(roots){const seen=new Set(),t=info[api.id];if(!t)return;
-  for(const root of roots)if(root)root.traverse(o=>{if(!o.isMesh||o.userData.holidaySkip)return;const uniforms=o.material?.uniforms;if(uniforms?.top?.value?.isColor){const skies=api.id==='halloween'?['#21142f','#56345f','#20182c']:api.id==='newyear'?['#70a6ce','#daeaf3','#a8c9d9']:['#8fbfdd','#f5d8c5','#c2d6d1'];['top','horizon','low'].forEach((key,i)=>{if(uniforms[key]){paintedSky.push([uniforms[key],uniforms[key].value.clone()]);uniforms[key].value.set(skies[i]);}});}for(const m of Array.isArray(o.material)?o.material:[o.material]){if(!m?.color||seen.has(m))continue;seen.add(m);painted.push([m,m.color.clone(),m.emissive?.clone(),m.map]);m.color.lerp(color(t.tint),api.id==='halloween'?.82:.38);if(o.geometry?.type==='PlaneGeometry'&&o.geometry.parameters.width>=900&&['newyear','halloween'].includes(api.id)){m.map=null;m.color.set(api.id==='newyear'?'#dfedf3':'#282239');m.needsUpdate=true;}}});
+  for(const root of roots)if(root)root.traverse(o=>{if(!o.isMesh||o.userData.holidaySkip)return;const uniforms=o.material?.uniforms;if(uniforms?.top?.value?.isColor){const skies=api.id==='halloween'?['#21142f','#56345f','#20182c']:api.id==='newyear'?['#071426','#172f4e','#10253b']:api.id==='birthday'?['#5f679f','#f0b88b','#a97c9a']:['#8fc6e5','#f3e9cf','#bdd9df'];['top','horizon','low'].forEach((key,i)=>{if(uniforms[key]){paintedSky.push([uniforms[key],uniforms[key].value.clone()]);uniforms[key].value.set(skies[i]);}});}for(const m of Array.isArray(o.material)?o.material:[o.material]){if(!m?.color||seen.has(m))continue;seen.add(m);painted.push([m,m.color.clone(),m.emissive?.clone(),m.map]);m.color.lerp(color(t.tint),api.id==='halloween'?.82:.38);if(o.geometry?.type==='PlaneGeometry'&&o.geometry.parameters.width>=900&&['newyear','halloween'].includes(api.id)){m.map=null;m.color.set(api.id==='newyear'?'#dfedf3':'#282239');m.needsUpdate=true;}}});
  }
  function label(parent,text,w=5,h=1){const c=document.createElement('canvas');c.width=1024;c.height=192;const ctx=c.getContext('2d'),t=info[api.id];ctx.fillStyle=api.id==='halloween'?'#301c49':'#183c51';ctx.beginPath();ctx.roundRect(0,0,1024,192,32);ctx.fill();ctx.strokeStyle=t.colors[0];ctx.lineWidth=12;ctx.stroke();ctx.fillStyle='#fff5dc';ctx.font='bold 78px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,512,100,965);const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;tex.userData.holidayOwned=true;return mesh(parent,new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:tex,side:THREE.DoubleSide}),0,0,0);}
  function balloon(parent,x,y,z,i=0){const m=material(info[api.id].colors[i%3]);const b=sphere(parent,.34,m,x,y,z);b.scale.y=1.25;rod(parent,[x,y-.38,z],[x-.1,y-1.7,z],.009,material('#f7ecdb'));}
@@ -65,7 +65,7 @@ function create(options){
  function petals(parent,x,z){for(let k=0;k<3;k++){const xx=x+(k-1)*.30,zz=z+(k%2)*.16,m=material('#73b38a');rod(parent,[xx,0,zz],[xx,.62,zz],.025,m);for(let j=0;j<5;j++){const a=j*Math.PI*2/5;const p=sphere(parent,.11,material(info[api.id].colors[k%3]),xx+Math.sin(a)*.1,.65,zz+Math.cos(a)*.1);p.scale.y=1.7;}}}
  function particles(parent,w,d,height=4){const n=api.id==='halloween'?32:90,positions=new Float32Array(n*3),colors=new Float32Array(n*3);for(let k=0;k<n;k++){positions[k*3]=(Math.random()-.5)*w;positions[k*3+1]=Math.random()*height+.4;positions[k*3+2]=(Math.random()-.5)*d;color(api.id==='newyear'?'#ffffff':info[api.id].colors[k%3]).toArray(colors,k*3);}const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(positions,3));geo.setAttribute('color',new THREE.BufferAttribute(colors,3));const mat=new THREE.PointsMaterial({size:api.id==='newyear'?.055:.045,vertexColors:true,transparent:true,opacity:.85});const p=new THREE.Points(geo,mat);p.name='holiday-particles';p.userData.height=height;parent.add(p);}
  function dropDecor(){restorePaint();if(decorations){decorations.removeFromParent();dispose(decorations);decorations=null;}}
- function lighting(){if(!api.id)return;const t=info[api.id];scene.background=color(t.sky);if(scene.fog)scene.fog.color.copy(color(t.sky));const h=options.hemi,l=options.light;if(h){h.color.set(api.id==='halloween'?'#c8b1ec':'#dfefff');h.intensity=api.id==='halloween'?.75:1.05;}if(l){l.color.set(api.id==='halloween'?'#ffd09b':api.id==='newyear'?'#e8f4ff':'#ffe4bd');l.intensity=api.id==='halloween'?1.65:2.7;}}
+ function lighting(outdoor=false){if(!api.id)return;const t=info[api.id];scene.background=color(t.sky);if(scene.fog)scene.fog.color.copy(color(t.sky));const h=options.hemi,l=options.light;if(h){h.color.set(api.id==='halloween'?'#c8b1ec':'#dfefff');h.intensity=api.id==='halloween'?.75:1.05;}if(l){l.color.set(api.id==='halloween'?'#ffd09b':api.id==='newyear'?'#e8f4ff':'#ffe4bd');l.intensity=api.id==='halloween'?1.65:2.7;}if(outdoor){const night=['halloween','newyear'].includes(api.id);scene.background=color(api.id==='newyear'?'#0e223b':api.id==='halloween'?'#181124':api.id==='birthday'?'#dca996':'#bce0ef');if(scene.fog)scene.fog.color.copy(scene.background);if(h){h.intensity=night?.62:.95;h.groundColor.set(night?'#25344d':'#7f9885');}if(l){l.intensity=night?1.2:api.id==='birthday'?2.2:2.7;l.color.set(api.id==='newyear'?'#b5d5ff':api.id==='halloween'?'#cbb9ed':api.id==='birthday'?'#ffd0a0':'#fff0d0');}}}
  api.obstacle=obstacle;
  api.room=(root,opts)=>{lastRoom={root,opts};lastTrack=null;dropDecor();if(opts.colliders){for(let i=opts.colliders.length-1;i>=0;i--)if(opts.colliders[i].holiday)opts.colliders.splice(i,1);}if(!api.id)return;
   lighting();const {width:w,depth:d,floor,hall=false}=opts;paint([floor,...root.children.filter(g=>g.userData.battleRoomArt)]);
@@ -81,15 +81,50 @@ function create(options){
   for(const s of [-1,1]){const prop=api.id==='newyear'?new THREE.Group():obstacle(s>0?1:0);if(api.id==='newyear')tree(prop);prop.position.set(s*(w/2-.95),0,-d/2+2);if(hall)prop.scale.setScalar(.55);g.add(prop);}
   particles(g,w-1,d-1);
  };
- api.track=(root,opts)=>{lastTrack={root,opts};lastRoom=null;dropDecor();if(!api.id)return;lighting();paint([root]);const g=decorations=new THREE.Group();g.name='seasonal-track-'+api.id;root.add(g);const {points,sideAt,elev,count,halfWidth=10}=opts;
+ api.track=(root,opts)=>{lastTrack={root,opts};lastRoom=null;dropDecor();if(!api.id)return;lighting(true);paint([root]);const g=decorations=new THREE.Group();g.name='seasonal-track-'+api.id;g.userData.weather={halloween:'night',newyear:'night',easter:'day',birthday:'sunset'}[api.id];root.add(g);const {points,sideAt,elev,count,halfWidth=10}=opts;
+  if(['halloween','newyear'].includes(api.id)){
+   for(const name of ['royal-sun-glow','royal-sun-disc']){const sun=root.getObjectByName(name);if(sun){hiddenSky.push([sun,sun.visible]);sun.visible=false;}}
+   const positions=new Float32Array(170*3);for(let i=0;i<170;i++){const a=i*2.399963,up=.22+(i%37)/50,r=230;positions[i*3]=Math.cos(a)*r*Math.sqrt(1-up*up);positions[i*3+1]=up*r+20;positions[i*3+2]=Math.sin(a)*r*Math.sqrt(1-up*up)-30;}
+   const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(positions,3));const stars=new THREE.Points(geo,new THREE.PointsMaterial({color:'#e5efff',size:.8,sizeAttenuation:true,fog:false}));stars.name='holiday-night-stars';g.add(stars);
+   const moon=mesh(g,new THREE.SphereGeometry(9,24,16),new THREE.MeshBasicMaterial({color:api.id==='halloween'?'#f0d7a9':'#deecff',fog:false}),140,128,-165);moon.name='holiday-moon';moon.castShadow=false;
+   for(const [x,y,r]of [[-2,3,1.2],[3,-1,1.7],[-3,-3,.8]]){const crater=mesh(moon,new THREE.CircleGeometry(r,16),new THREE.MeshBasicMaterial({color:api.id==='halloween'?'#ccb68f':'#b8cedd',side:THREE.DoubleSide,fog:false}),x,y,-8.7);crater.rotation.y=Math.PI;}
+  }
   for(let i=0;i<count;i+=Math.max(18,Math.floor(count/26))){const p=points[i],s=sideAt(i),h=elev(i/count);for(const sign of [-1,1]){const a=new THREE.Group();a.position.set(p.x+s.x*(halfWidth+2.4)*sign,h,p.z+s.z*(halfWidth+2.4)*sign);a.rotation.y=Math.atan2(s.x*sign,s.z*sign);g.add(a);if(api.id==='newyear')tree(a);else{const prop=obstacle(i%3);prop.scale.setScalar(1.65);a.add(prop);if(api.id==='birthday')for(let k=0;k<3;k++)balloon(a,(k-1)*.4,3+k*.2,0,k);if(api.id==='halloween'){web(a,0,3,0,1.5);bat(a,0,3.4,0,1.8);}if(api.id==='easter')petals(a,1.2,0);}}}
   for(const fraction of [.015,.26,.51,.76]){const i=Math.floor(count*fraction),p=points[i],s=sideAt(i),gate=new THREE.Group();gate.position.set(p.x,elev(i/count),p.z);gate.rotation.y=Math.atan2(s.x,s.z)-Math.PI/2;g.add(gate);for(const sign of [-1,1])cyl(gate,.12,.18,6.5,material(info[api.id].colors[1]),sign*(halfWidth+.8),3.25,0);garland(gate,[-halfWidth-.8,6.4,0],[halfWidth+.8,6.4,0],28);const text=label(gate,info[api.id].title,8,1.2);text.position.set(0,6,0);}
   const p=points[0],cloud=new THREE.Group();cloud.position.set(p.x,0,p.z);g.add(cloud);particles(cloud,70,70,12);
  };
+ function monsterEye(parent,x,y,z,kind='zombie',size=.13){const white=material(kind==='wolf'?'#ffcf69':'#fff3ca');sphere(parent,size,white,x,y,z);sphere(parent,size*.43,material('#24202e'),x+(kind==='zombie'?.025:0),y,z-size*.75);}
+ function stitches(parent,x,y,z,width=.48,angle=0){const g=new THREE.Group();g.position.set(x,y,z);g.rotation.z=angle;parent.add(g);const dark=material('#403442');rod(g,[-width/2,0,0],[width/2,0,0],.012,dark);for(let i=0;i<5;i++){const xx=-width/2+(i+.5)*width/5;rod(g,[xx-.025,-.055,.005],[xx+.025,.055,.005],.014,dark);}}
+ function zombieCostume(g){const skin=material('#90a887'),cloth=material('#cec7ac'),patch=material('#74728d');
+  const face=box(g,.82,.56,.055,skin,0,.65,-.185);face.rotation.z=.06;
+  monsterEye(g,-.24,.76,-.23,'zombie',.14);monsterEye(g,.23,.69,-.23,'zombie',.12);
+  stitches(g,.05,.43,-.24,.52,-.12);stitches(g,-.53,.71,-.21,.30,.75);
+  for(const [x,y,a]of [[-.76,.76,.45],[.70,.68,-.35]]){const band=box(g,.29,.72,.05,cloth,x,y,-.05);band.rotation.z=a;}
+  const repair=box(g,.36,.27,.06,patch,.45,.47,-.17);repair.rotation.z=.25;stitches(g,.45,.47,-.215,.25,.25);
+  const sh=new THREE.Shape();sh.moveTo(-.5,.12);sh.lineTo(.5,.12);sh.lineTo(.4,-.25);sh.lineTo(.21,-.14);sh.lineTo(.08,-.30);sh.lineTo(-.14,-.17);sh.lineTo(-.43,-.26);sh.closePath();const rag=mesh(g,new THREE.ShapeGeometry(sh),cloth,0,.70,.85);rag.material.side=THREE.DoubleSide;
+  g.userData.costume='Зомби';
+ }
+ function frankensteinCostume(g){const green=material('#8abc85'),steel=material('#9cabb3'),dark=material('#323441'),energy=material('#82ffd0',true);
+  box(g,.75,.55,.065,green,.18,.70,-.18);box(g,.80,.12,.08,dark,.18,1.01,-.18);stitches(g,.18,.91,-.24,.60,.05);
+  monsterEye(g,-.03,.77,-.24,'frank',.105);monsterEye(g,.39,.77,-.24,'frank',.105);stitches(g,.18,.52,-.24,.38,0);
+  for(const sign of [-1,1]){const bolt=cyl(g,.12,.12,.29,steel,sign*1.05,.67,.20,8);bolt.rotation.z=Math.PI/2;const cap=cyl(g,.17,.17,.09,steel,sign*1.19,.67,.20,6);cap.rotation.z=Math.PI/2;}
+  const ring=mesh(g,new THREE.TorusGeometry(.375,.038,8,30),energy,-.48,1.30,.36);ring.rotation.x=Math.PI/2;
+  const ring2=ring.clone();ring2.position.y=.98;g.add(ring2);
+  const pts=[[-.56,1.38,.15],[-.44,1.25,.12],[-.57,1.18,.12],[-.39,1.05,.14]];for(let i=1;i<pts.length;i++)rod(g,pts[i-1],pts[i],.028,energy);
+  sphere(g,.055,energy,-.48,1.40,.36);g.userData.costume='Франкенштейн';
+ }
+ function werewolfCostume(g){const fur=material('#716052'),lighter=material('#bba186'),nose=material('#29232d'),ear=material('#d58f97');
+  for(const sign of [-1,1]){const sh=new THREE.Shape();sh.moveTo(-.22,0);sh.lineTo(0,.60);sh.lineTo(.23,0);sh.closePath();const e=mesh(g,new THREE.ShapeGeometry(sh),fur,sign*.58,.69,-.05);e.rotation.z=-sign*.22;e.material.side=THREE.DoubleSide;const inner=mesh(g,new THREE.ShapeGeometry(sh),ear,sign*.58,.73,-.075);inner.scale.set(.50,.62,.6);inner.rotation.z=-sign*.22;}
+  for(const sign of [-1,1]){const cheek=sphere(g,.27,lighter,sign*.20,.42,-.93);cheek.scale.set(1,.8,.62);monsterEye(g,sign*.39,.64,-.84,'wolf',.12);const brow=box(g,.28,.075,.08,fur,sign*.39,.77,-.84);brow.rotation.z=-sign*.25;const paw=sphere(g,.26,fur,sign*.88,.18,-.25);paw.scale.set(.65,.55,1.1);for(let k=0;k<3;k++)sphere(g,.045,lighter,sign*.88+(k-1)*.08,.12,-.48);}
+  const sn=sphere(g,.12,nose,0,.44,-1.12);sn.scale.set(1.1,.75,.7);
+  const tail=new THREE.Group();tail.position.set(.48,.38,.90);tail.rotation.x=.18;g.add(tail);for(let i=0;i<5;i++){const tuft=sphere(tail,.20-i*.022,i>2?lighter:fur,Math.sin(i*.55)*.16,i*.14,i*.17);tuft.scale.set(1.0,1.05,1.35);}
+  for(let i=0;i<5;i++){const tuft=sphere(g,.13,fur,-.6+i*.3,.7,.45);tuft.scale.set(.7,1.5,1.0);}g.userData.costume='Оборотень';
+ }
  api.skin=(root,model)=>{root.userData.holidayModel=model;const old=root.getObjectByName('seasonal-vacuum-skin');if(old){old.removeFromParent();dispose(old);}if(!api.id)return;const g=new THREE.Group();g.name='seasonal-vacuum-skin';g.userData.holiday=api.id;root.add(g);
   const driver=root.userData.driver||root.children.find(c=>c.type==='Group'&&c.children.length>10),y=(driver?.position.y??.7)+.66;
   if(api.id==='halloween'){
-   if(!['stick','steam','washer'].includes(model)){root.remove(g);return;}
+   if(model==='canister'){zombieCostume(g);return;}if(model==='cyclone'){frankensteinCostume(g);return;}if(model==='robot'){werewolfCostume(g);return;}
+   if(!['stick','steam','washer'].includes(model)){root.remove(g);return;}g.userData.costume='Дракула';
    const head={stick:{z:-1.04,y:.39,x:.47},steam:{z:-1.04,y:.30,x:.39},washer:{z:-1.02,y:.43,x:.41}}[model];
    // Curved, tapered ivory teeth point DOWN from the upper edge of the brush.
    for(const sign of [-1,1]){const positions=[],indices=[],rings=7,sides=14;
