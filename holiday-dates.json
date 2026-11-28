@@ -1,0 +1,37 @@
+{
+  "duration_days": 7,
+  "timezone": "local device calendar",
+  "birthday_sources": {
+    "Битва пылесосов": {
+      "date": "2026-09-05",
+      "first_commit": "ad1844c",
+      "repository": "https://github.com/MaksimDodychin/mark-bitva"
+    },
+    "Гонки пылесосов": {
+      "date": "2026-06-20",
+      "first_commit": "2b5400e",
+      "repository": "https://github.com/MaksimDodychin/mark-kart"
+    }
+  },
+  "holidays": {
+    "halloween": "10-31",
+    "newyear": "01-01",
+    "easter": "Orthodox Easter, computed every year"
+  },
+  "references": [
+    "https://www.timeanddate.com/holidays/common/halloween",
+    "https://nv-predtecha.cerkov.ru/files/2017/10/Пасхалия.pdf"
+  ],
+  "manual_holiday_selection": false,
+  "collectibles": {
+    "easter": "Пасхальные яички",
+    "newyear": "Упавшие ёлочные иголки",
+    "halloween": "Фантики от конфет",
+    "birthday": "Крошки торта"
+  },
+  "dracula_models": [
+    "stick",
+    "steam",
+    "washer"
+  ]
+}
